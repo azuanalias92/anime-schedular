@@ -770,7 +770,7 @@ function App() {
         <div className="section-heading">
           <div>
             <span className="eyebrow">Your watchlist</span>
-            <h2 id="watchlist-title">Selected AniCount picks</h2>
+            <h2 id="watchlist-title">Your saved anime</h2>
           </div>
           <div className="section-actions">
             <span className="muted">{watchlist.length} anime</span>
@@ -920,7 +920,7 @@ function App() {
                       </div>
                       <button
                         type="button"
-                        className={isSelected ? "secondary-button full-width" : "primary-button full-width"}
+                        className={isSelected ? "secondary-button full-width anime-card-action" : "primary-button full-width anime-card-action"}
                         onClick={() => toggleWatchlist(anime)}
                         aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                         title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}

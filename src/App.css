@@ -454,11 +454,13 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 0.8rem;
+  align-items: stretch;
 }
 
 .anime-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
   overflow: hidden;
   border-radius: 24px;
   content-visibility: auto;
@@ -477,10 +479,14 @@
 
 .anime-card-body {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.85rem;
-  height: 100%;
+}
+
+.anime-card-action {
+  margin-top: auto;
 }
 
 .card-topline,
