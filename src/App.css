@@ -608,8 +608,7 @@
   }
 
   .panel-topline,
-  .section-heading,
-  .toolbar {
+  .section-heading {
     display: flex;
     align-items: flex-start;
     flex-direction: column;
@@ -638,9 +637,9 @@
   }
 
   .toolbar-actions {
-    width: 100%;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    gap: 0.55rem;
   }
 
   .toolbar-actions .icon-only-button {
