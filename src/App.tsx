@@ -404,9 +404,7 @@ function readStoredWatchlist(): AnimeCardData[] {
     return parsed
       .filter((item) => typeof item?.malId === "number" && typeof item?.title === "string")
       .map((item) => {
-        const imageUrl = typeof item.imageUrl === "string" && item.imageUrl.startsWith("https://")
-          ? item.imageUrl
-          : "/favicon.svg";
+        const imageUrl = typeof item.imageUrl === "string" && item.imageUrl.startsWith("https://") ? item.imageUrl : "/favicon.svg";
 
         return {
           malId: item.malId,
@@ -435,14 +433,18 @@ function readStoredWatchlist(): AnimeCardData[] {
   }
 }
 
-function mergeAnimeCards(currentList: AnimeCardData[], incomingList: AnimeCardData[]): AnimeCardData[] {
+function dedupeAnimeCards(list: AnimeCardData[]): AnimeCardData[] {
   const deduped = new Map<number, AnimeCardData>();
 
-  [...currentList, ...incomingList].forEach((item) => {
+  list.forEach((item) => {
     deduped.set(item.malId, item);
   });
 
-  return [...deduped.values()].sort(byNearestRelease);
+  return [...deduped.values()];
+}
+
+function mergeAnimeCards(currentList: AnimeCardData[], incomingList: AnimeCardData[]): AnimeCardData[] {
+  return dedupeAnimeCards([...currentList, ...incomingList]).sort(byNearestRelease);
 }
 
 function App() {
@@ -547,10 +549,9 @@ function App() {
         }
 
         const payload = (await response.json()) as AnimeListApiResponse;
-        const normalized = payload.data
-          .map(normalizeAnime)
-          .filter((anime) => anime.status !== "Finished Airing")
-          .sort(byNearestRelease);
+        const normalized = dedupeAnimeCards(payload.data.map(normalizeAnime).filter((anime) => anime.status !== "Finished Airing")).sort(
+          byNearestRelease,
+        );
 
         setUpcomingAnime((currentList) => (mode === "replace" ? normalized : mergeAnimeCards(currentList, normalized)));
         syncWatchlist(normalized);
@@ -593,9 +594,7 @@ function App() {
         }
 
         const payload = (await response.json()) as AnimeListApiResponse;
-        const normalized = payload.data
-          .map(normalizeAnime)
-          .sort(byRecentRelease);
+        const normalized = dedupeAnimeCards(payload.data.map(normalizeAnime)).sort(byRecentRelease);
 
         setSearchResults((currentList) => (mode === "replace" ? normalized : mergeAnimeCards(currentList, normalized)));
         syncWatchlist(normalized);
@@ -779,17 +778,15 @@ function App() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={() => { clearWatchlist(); setShowClearConfirm(false); }}
+                  onClick={() => {
+                    clearWatchlist();
+                    setShowClearConfirm(false);
+                  }}
                   aria-label="Confirm clear watchlist"
                 >
                   Clear all
                 </button>
-                <button
-                  type="button"
-                  className="ghost-button"
-                  onClick={() => setShowClearConfirm(false)}
-                  aria-label="Cancel clear watchlist"
-                >
+                <button type="button" className="ghost-button" onClick={() => setShowClearConfirm(false)} aria-label="Cancel clear watchlist">
                   Cancel
                 </button>
               </>
@@ -840,19 +837,46 @@ function App() {
       {installPrompt ? (
         <div className="status-banner" style={{ borderColor: "rgba(122, 229, 130, 0.4)" }}>
           Install AniCount for quick access
-          <button type="button" className="ghost-button" onClick={() => void handleInstall()} style={{ marginLeft: "0.75rem" }}>Install</button>
-          <button type="button" className="icon-button icon-only-button" onClick={() => setInstallPrompt(null)} style={{ marginLeft: "0.4rem" }} aria-label="Dismiss install prompt">
+          <button type="button" className="ghost-button" onClick={() => void handleInstall()} style={{ marginLeft: "0.75rem" }}>
+            Install
+          </button>
+          <button
+            type="button"
+            className="icon-button icon-only-button"
+            onClick={() => setInstallPrompt(null)}
+            style={{ marginLeft: "0.4rem" }}
+            aria-label="Dismiss install prompt"
+          >
             <ClearIcon />
           </button>
         </div>
       ) : null}
-      {isOffline ? <div className="status-banner" role="status">You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.</div> : null}
+      {isOffline ? (
+        <div className="status-banner" role="status">
+          You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.
+        </div>
+      ) : null}
 
-      {error ? <div className="status-banner error-banner" role="alert" aria-live="assertive">{error} <button type="button" className="ghost-button" onClick={() => { setError(null); void loadUpcomingAnime(1, "replace"); }} style={{ marginLeft: "0.75rem" }}>Retry</button></div> : null}
+      {error ? (
+        <div className="status-banner error-banner" role="alert" aria-live="assertive">
+          {error}{" "}
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => {
+              setError(null);
+              void loadUpcomingAnime(1, "replace");
+            }}
+            style={{ marginLeft: "0.75rem" }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       <section className="toolbar" aria-label="Anime controls">
         <label className="search-field">
-          <span>Search all anime</span>
+          <span className="eyebrow">Search all anime</span>
           <input type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
         </label>
         {isSearchMode ? (
@@ -956,9 +980,7 @@ function App() {
         )}
       </section>
 
-      <footer className="app-version">
-        AniCount v{__APP_VERSION__}
-      </footer>
+      <footer className="app-version">AniCount v{__APP_VERSION__}</footer>
     </main>
   );
 }
