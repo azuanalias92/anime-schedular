@@ -336,6 +336,13 @@ function byNearestRelease(a: AnimeCardData, b: AnimeCardData): number {
   return aTime - bTime;
 }
 
+function byRecentRelease(a: AnimeCardData, b: AnimeCardData): number {
+  const aTime = a.releaseAt ? new Date(a.releaseAt).getTime() : 0;
+  const bTime = b.releaseAt ? new Date(b.releaseAt).getTime() : 0;
+
+  return bTime - aTime;
+}
+
 function toFutureTimeOrInfinity(isoDate: string | null, now: number): number {
   if (!isoDate) {
     return Number.POSITIVE_INFINITY;
@@ -588,7 +595,7 @@ function App() {
         const payload = (await response.json()) as AnimeListApiResponse;
         const normalized = payload.data
           .map(normalizeAnime)
-          .sort(byNearestRelease);
+          .sort(byRecentRelease);
 
         setSearchResults((currentList) => (mode === "replace" ? normalized : mergeAnimeCards(currentList, normalized)));
         syncWatchlist(normalized);
