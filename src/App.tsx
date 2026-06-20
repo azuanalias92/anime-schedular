@@ -166,14 +166,6 @@ function stripSynopsis(synopsis: string | null): string {
   return synopsis.replace(/\s+/g, " ").trim();
 }
 
-function normalizeTitleMatchText(value: string | null | undefined): string {
-  if (!value) {
-    return "";
-  }
-
-  return value.trim().replace(/\s+/g, " ").toLowerCase();
-}
-
 function getWeekdayIndex(day: string | null): number | null {
   if (!day) {
     return null;
@@ -646,7 +638,17 @@ function App() {
   const activePage = isSearchMode ? searchPage : upcomingPage;
   const activeHasNextPage = isSearchMode ? searchHasNextPage : upcomingHasNextPage;
 
-  const sortedWatchlist = useMemo(() => [...watchlist].sort(byNearestRelease), [watchlist]);
+  const sortedWatchlist = useMemo(
+    () =>
+      [...watchlist]
+        .map((anime) => ({
+          anime,
+          nextEpisodeAt: resolveNextEpisodeAt(anime, now),
+        }))
+        .sort((a, b) => toFutureTimeOrInfinity(a.nextEpisodeAt, now) - toFutureTimeOrInfinity(b.nextEpisodeAt, now))
+        .map((entry) => entry.anime),
+    [now, watchlist],
+  );
 
   const watchlistWithNextEpisode = useMemo(
     () =>
