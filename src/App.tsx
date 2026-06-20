@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+declare const __APP_VERSION__: string;
 import "./App.css";
 
 const API_BASE = "https://api.jikan.moe/v4";
@@ -946,6 +948,10 @@ function App() {
           </div>
         )}
       </section>
+
+      <footer style="text-align: center; padding: 1rem 0 0.5rem; color: var(--text-muted); font-size: 0.75rem; opacity: 0.6">
+        AniCount v{__APP_VERSION__}
+      </footer>
     </main>
   );
 }
