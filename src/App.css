@@ -146,7 +146,7 @@
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr);
   gap: 0.8rem;
-  align-items: center;
+  align-items: start;
 }
 
 .countdown-header > div,
@@ -157,6 +157,10 @@
 
 .countdown-header > div {
   gap: var(--text-gap-sm);
+}
+
+.countdown-copy {
+  min-width: 0;
 }
 
 .section-heading > div {
@@ -213,6 +217,7 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.65rem;
+  align-self: start;
 }
 
 .countdown-cell,
@@ -567,6 +572,10 @@
     grid-template-columns: 1fr;
     justify-items: center;
     text-align: center;
+  }
+
+  .countdown-copy {
+    width: 100%;
   }
 
   .countdown-art {
