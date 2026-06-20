@@ -16,10 +16,10 @@
   --text-primary: var(--color-foam);
   --text-secondary: var(--color-ice);
   --text-muted: #79dcc7;
-  --panel-bg: rgba(0, 78, 100, 0.72);
-  --panel-strong-bg: rgba(7, 95, 107, 0.88);
-  --panel-alt-bg: rgba(37, 161, 142, 0.18);
-  --panel-highlight: rgba(122, 229, 130, 0.16);
+  --panel-bg: rgba(0, 0, 0, 0.82);
+  --panel-strong-bg: rgba(8, 8, 8, 0.94);
+  --panel-alt-bg: rgba(20, 20, 20, 0.88);
+  --panel-highlight: rgba(32, 32, 32, 0.92);
   --chip-bg: rgba(159, 255, 203, 0.14);
   --chip-border: rgba(122, 229, 130, 0.28);
   --surface-border: rgba(0, 165, 207, 0.28);
@@ -33,11 +33,11 @@
   font-weight: 400;
   color: var(--text-primary);
   background:
-    radial-gradient(circle at top left, rgba(159, 255, 203, 0.2), transparent 22%),
-    radial-gradient(circle at top right, rgba(122, 229, 130, 0.16), transparent 20%),
-    radial-gradient(circle at bottom right, rgba(0, 165, 207, 0.2), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(37, 161, 142, 0.18), transparent 26%),
-    linear-gradient(180deg, #004e64 0%, #0f6576 52%, #004e64 100%);
+    radial-gradient(circle at top left, rgba(159, 255, 203, 0.1), transparent 22%),
+    radial-gradient(circle at top right, rgba(122, 229, 130, 0.08), transparent 20%),
+    radial-gradient(circle at bottom right, rgba(0, 165, 207, 0.1), transparent 30%),
+    radial-gradient(circle at bottom left, rgba(37, 161, 142, 0.08), transparent 26%),
+    linear-gradient(180deg, #000000 0%, #050505 52%, #000000 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

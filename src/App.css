@@ -28,40 +28,40 @@
   background: var(--panel-bg);
   border-radius: 28px;
   backdrop-filter: blur(24px);
-  box-shadow: 0 20px 60px rgba(0, 78, 100, 0.24);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
 }
 
 .countdown-panel {
   background:
-    linear-gradient(145deg, rgba(0, 165, 207, 0.2), rgba(0, 78, 100, 0.82) 38%),
-    linear-gradient(180deg, rgba(37, 161, 142, 0.18), rgba(0, 78, 100, 0.84));
+    linear-gradient(145deg, rgba(0, 165, 207, 0.14), rgba(0, 0, 0, 0.92) 38%),
+    linear-gradient(180deg, rgba(37, 161, 142, 0.12), rgba(6, 6, 6, 0.96));
   border-color: rgba(0, 165, 207, 0.4);
 }
 
 .watchlist-panel {
   background:
-    linear-gradient(145deg, rgba(37, 161, 142, 0.18), rgba(0, 78, 100, 0.8) 42%),
-    linear-gradient(180deg, rgba(122, 229, 130, 0.12), rgba(0, 78, 100, 0.84));
+    linear-gradient(145deg, rgba(37, 161, 142, 0.14), rgba(0, 0, 0, 0.92) 42%),
+    linear-gradient(180deg, rgba(122, 229, 130, 0.08), rgba(6, 6, 6, 0.96));
   border-color: rgba(37, 161, 142, 0.4);
 }
 
 .upcoming-panel {
   background:
-    linear-gradient(145deg, rgba(159, 255, 203, 0.12), rgba(0, 78, 100, 0.82) 42%),
-    linear-gradient(180deg, rgba(0, 165, 207, 0.14), rgba(0, 78, 100, 0.84));
+    linear-gradient(145deg, rgba(159, 255, 203, 0.08), rgba(0, 0, 0, 0.92) 42%),
+    linear-gradient(180deg, rgba(0, 165, 207, 0.1), rgba(6, 6, 6, 0.96));
   border-color: rgba(122, 229, 130, 0.34);
 }
 
 .toolbar {
   background:
-    linear-gradient(145deg, rgba(159, 255, 203, 0.1), rgba(0, 78, 100, 0.82) 45%),
-    linear-gradient(180deg, rgba(37, 161, 142, 0.14), rgba(0, 78, 100, 0.84));
+    linear-gradient(145deg, rgba(159, 255, 203, 0.08), rgba(0, 0, 0, 0.92) 45%),
+    linear-gradient(180deg, rgba(37, 161, 142, 0.1), rgba(6, 6, 6, 0.96));
 }
 
 .status-banner {
   background:
-    linear-gradient(145deg, rgba(0, 165, 207, 0.16), rgba(0, 78, 100, 0.84) 55%),
-    linear-gradient(180deg, rgba(159, 255, 203, 0.1), rgba(0, 78, 100, 0.86));
+    linear-gradient(145deg, rgba(0, 165, 207, 0.12), rgba(0, 0, 0, 0.94) 55%),
+    linear-gradient(180deg, rgba(159, 255, 203, 0.08), rgba(8, 8, 8, 0.96));
 }
 
 .countdown-panel,
@@ -222,7 +222,7 @@
   padding: 0.8rem;
   text-align: center;
   background:
-    linear-gradient(180deg, rgba(122, 229, 130, 0.14), rgba(0, 78, 100, 0.9)),
+    linear-gradient(180deg, rgba(122, 229, 130, 0.1), rgba(0, 0, 0, 0.94)),
     var(--panel-strong-bg);
   border-color: rgba(122, 229, 130, 0.3);
 }
@@ -288,7 +288,7 @@
   border-radius: 16px;
   border: 1px solid var(--surface-border);
   background:
-    linear-gradient(180deg, rgba(37, 161, 142, 0.12), rgba(0, 78, 100, 0.92)),
+    linear-gradient(180deg, rgba(37, 161, 142, 0.08), rgba(0, 0, 0, 0.96)),
     var(--panel-strong-bg);
   color: var(--text-primary);
   padding: 0.78rem 0.9rem;
@@ -419,7 +419,7 @@
   padding: 0.75rem;
   border-radius: 22px;
   background:
-    linear-gradient(145deg, rgba(37, 161, 142, 0.16), rgba(0, 78, 100, 0.88) 52%),
+    linear-gradient(145deg, rgba(37, 161, 142, 0.1), rgba(0, 0, 0, 0.96) 52%),
     var(--panel-strong-bg);
   border: 1px solid rgba(37, 161, 142, 0.34);
 }
@@ -461,7 +461,7 @@
   overflow: hidden;
   border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(159, 255, 203, 0.08), rgba(0, 78, 100, 0.84) 20%),
+    linear-gradient(180deg, rgba(159, 255, 203, 0.05), rgba(0, 0, 0, 0.94) 20%),
     var(--panel-bg);
   border: 1px solid rgba(0, 165, 207, 0.26);
 }
