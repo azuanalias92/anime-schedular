@@ -761,3 +761,10 @@
   box-shadow: 0 24px 72px rgba(0, 165, 207, 0.18);
   transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
 }
+.app-version {
+  text-align: center;
+  padding: 1rem 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  opacity: 0.6;
+}

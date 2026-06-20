@@ -717,7 +717,7 @@ function App() {
                 <div className="countdown-grid" aria-label="Next episode countdown" aria-live="polite">
                   {countdown ? (
                     countdown.days === "00" && countdown.hours === "00" && countdown.minutes === "00" && countdown.seconds === "00" ? (
-                      <div className="countdown-unavailable" style="border-color: rgba(122, 229, 130, 0.5)">
+                      <div className="countdown-unavailable" style={{ borderColor: "rgba(122, 229, 130, 0.5)" }}>
                         <strong>Airing Now</strong>
                         <span>The next episode is airing right now!</span>
                       </div>
@@ -831,17 +831,17 @@ function App() {
       </section>
 
       {installPrompt ? (
-        <div className="status-banner" style="border-color: rgba(122, 229, 130, 0.4)">
+        <div className="status-banner" style={{ borderColor: "rgba(122, 229, 130, 0.4)" }}>
           Install AniCount for quick access
-          <button type="button" className="ghost-button" onClick={() => void handleInstall()} style="margin-left: 0.75rem">Install</button>
-          <button type="button" className="icon-button icon-only-button" onClick={() => setInstallPrompt(null)} style="margin-left: 0.4rem" aria-label="Dismiss install prompt">
+          <button type="button" className="ghost-button" onClick={() => void handleInstall()} style={{ marginLeft: "0.75rem" }}>Install</button>
+          <button type="button" className="icon-button icon-only-button" onClick={() => setInstallPrompt(null)} style={{ marginLeft: "0.4rem" }} aria-label="Dismiss install prompt">
             <ClearIcon />
           </button>
         </div>
       ) : null}
       {isOffline ? <div className="status-banner" role="status">You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.</div> : null}
 
-      {error ? <div className="status-banner error-banner" role="alert" aria-live="assertive">{error} <button type="button" className="ghost-button" onClick={() => { setError(null); void loadUpcomingAnime(1, "replace"); }} style="margin-left: 0.75rem">Retry</button></div> : null}
+      {error ? <div className="status-banner error-banner" role="alert" aria-live="assertive">{error} <button type="button" className="ghost-button" onClick={() => { setError(null); void loadUpcomingAnime(1, "replace"); }} style={{ marginLeft: "0.75rem" }}>Retry</button></div> : null}
 
       <section className="toolbar" aria-label="Anime controls">
         <label className="search-field">
@@ -949,7 +949,7 @@ function App() {
         )}
       </section>
 
-      <footer style="text-align: center; padding: 1rem 0 0.5rem; color: var(--text-muted); font-size: 0.75rem; opacity: 0.6">
+      <footer className="app-version">
         AniCount v{__APP_VERSION__}
       </footer>
     </main>
