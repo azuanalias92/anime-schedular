@@ -66,12 +66,13 @@ input {
 
 button,
 input {
-  outline: none;
+  outline: 2px solid transparent;
 }
 
 button:focus-visible,
 input:focus-visible {
-  box-shadow: 0 0 0 3px rgba(159, 255, 203, 0.35);
+  outline-color: rgba(159, 255, 203, 0.65);
+  outline-offset: 2px;
 }
 
 img {

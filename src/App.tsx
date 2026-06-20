@@ -174,16 +174,6 @@ function normalizeTitleMatchText(value: string | null | undefined): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function isExactAnimeTitleMatch(query: string, anime: AnimeApiItem): boolean {
-  const normalizedQuery = normalizeTitleMatchText(query);
-
-  if (!normalizedQuery) {
-    return false;
-  }
-
-  return [anime.title, anime.title_english, anime.title_japanese].some((title) => normalizeTitleMatchText(title) === normalizedQuery);
-}
-
 function getWeekdayIndex(day: string | null): number | null {
   if (!day) {
     return null;
@@ -468,6 +458,8 @@ function App() {
   const [isOffline, setIsOffline] = useState(typeof navigator === "undefined" ? false : !navigator.onLine);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
 
@@ -495,6 +487,11 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
   }, [watchlist]);
+
+  useEffect(() => {
+    const prompt = (window as any).__pwaInstallPrompt;
+    if (prompt) setInstallPrompt(prompt);
+  }, []);
 
   const syncWatchlist = useCallback((incomingList: AnimeCardData[]) => {
     setWatchlist((currentWatchlist) => {
@@ -597,7 +594,6 @@ function App() {
         const payload = (await response.json()) as AnimeListApiResponse;
         const normalized = payload.data
           .filter((anime) => anime.status !== "Finished Airing")
-          .filter((anime) => isExactAnimeTitleMatch(query, anime))
           .map(normalizeAnime)
           .sort(byNearestRelease);
 
@@ -682,6 +678,15 @@ function App() {
     });
   }
 
+  async function handleInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const result = await installPrompt.userChoice;
+    if (result.outcome === "accepted") {
+      setInstallPrompt(null);
+    }
+  }
+
   function clearWatchlist() {
     setWatchlist([]);
   }
@@ -703,29 +708,36 @@ function App() {
         {nextCountdownAnime ? (
           <>
             <div className="countdown-header">
-              <img className="countdown-art" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} />
+              <img className="countdown-art" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
               <div className="countdown-copy">
                 <h2 id="next-release-title">{nextCountdownAnime.title}</h2>
-                <div className="countdown-grid" aria-label="Next episode countdown">
+                <div className="countdown-grid" aria-label="Next episode countdown" aria-live="polite">
                   {countdown ? (
-                    <>
-                      <div className="countdown-cell">
-                        <strong>{countdown.days}</strong>
-                        <span>Days</span>
+                    countdown.days === "00" && countdown.hours === "00" && countdown.minutes === "00" && countdown.seconds === "00" ? (
+                      <div className="countdown-unavailable" style="border-color: rgba(122, 229, 130, 0.5)">
+                        <strong>Airing Now</strong>
+                        <span>The next episode is airing right now!</span>
                       </div>
-                      <div className="countdown-cell">
-                        <strong>{countdown.hours}</strong>
-                        <span>Hours</span>
-                      </div>
-                      <div className="countdown-cell">
-                        <strong>{countdown.minutes}</strong>
-                        <span>Minutes</span>
-                      </div>
-                      <div className="countdown-cell">
-                        <strong>{countdown.seconds}</strong>
-                        <span>Seconds</span>
-                      </div>
-                    </>
+                    ) : (
+                      <>
+                        <div className="countdown-cell">
+                          <strong>{countdown.days}</strong>
+                          <span>Days</span>
+                        </div>
+                        <div className="countdown-cell">
+                          <strong>{countdown.hours}</strong>
+                          <span>Hours</span>
+                        </div>
+                        <div className="countdown-cell">
+                          <strong>{countdown.minutes}</strong>
+                          <span>Minutes</span>
+                        </div>
+                        <div className="countdown-cell">
+                          <strong>{countdown.seconds}</strong>
+                          <span>Seconds</span>
+                        </div>
+                      </>
+                    )
                   ) : (
                     <div className="countdown-unavailable">
                       <strong>Next Episode TBA</strong>
@@ -752,16 +764,37 @@ function App() {
           </div>
           <div className="section-actions">
             <span className="muted">{watchlist.length} anime</span>
-            <button
-              type="button"
-              className="ghost-button icon-only-button"
-              onClick={clearWatchlist}
-              disabled={watchlist.length === 0}
-              aria-label="Clear watchlist"
-              title="Clear watchlist"
-            >
-              <TrashIcon />
-            </button>
+            {showClearConfirm ? (
+              <>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => { clearWatchlist(); setShowClearConfirm(false); }}
+                  aria-label="Confirm clear watchlist"
+                >
+                  Clear all
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setShowClearConfirm(false)}
+                  aria-label="Cancel clear watchlist"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="ghost-button icon-only-button"
+                onClick={() => setShowClearConfirm(true)}
+                disabled={watchlist.length === 0}
+                aria-label="Clear watchlist"
+                title="Clear watchlist"
+              >
+                <TrashIcon />
+              </button>
+            )}
           </div>
         </div>
 
@@ -769,7 +802,7 @@ function App() {
           <div className="watchlist-items">
             {sortedWatchlist.map((anime) => (
               <article key={anime.malId} className="watchlist-card">
-                <img src={anime.imageUrl} alt={anime.title} />
+                <img src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
                 <div className="watchlist-card-copy">
                   <h3>{anime.title}</h3>
                   <p>Next ep: {formatNextEpisodeLabel(resolveNextEpisodeAt(anime, now))}</p>
@@ -794,9 +827,18 @@ function App() {
         )}
       </section>
 
-      {isOffline ? <div className="status-banner">You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.</div> : null}
+      {installPrompt ? (
+        <div className="status-banner" style="border-color: rgba(122, 229, 130, 0.4)">
+          Install AniCount for quick access
+          <button type="button" className="ghost-button" onClick={() => void handleInstall()} style="margin-left: 0.75rem">Install</button>
+          <button type="button" className="icon-button icon-only-button" onClick={() => setInstallPrompt(null)} style="margin-left: 0.4rem" aria-label="Dismiss install prompt">
+            <ClearIcon />
+          </button>
+        </div>
+      ) : null}
+      {isOffline ? <div className="status-banner" role="status">You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.</div> : null}
 
-      {error ? <div className="status-banner error-banner">{error}</div> : null}
+      {error ? <div className="status-banner error-banner" role="alert" aria-live="assertive">{error} <button type="button" className="ghost-button" onClick={() => { setError(null); void loadUpcomingAnime(1, "replace"); }} style="margin-left: 0.75rem">Retry</button></div> : null}
 
       <section className="toolbar" aria-label="Anime controls">
         <label className="search-field">
@@ -845,7 +887,7 @@ function App() {
 
                 return (
                   <article key={anime.malId} className="anime-card">
-                    <img className="anime-card-art" src={anime.imageUrl} alt={anime.title} />
+                    <img className="anime-card-art" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
                     <div className="anime-card-body">
                       <div className="card-topline">
                         <span className="card-badge">{anime.seasonLabel}</span>
@@ -873,7 +915,7 @@ function App() {
                         aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                         title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                       >
-                        {isSelected ? "In Watchlist" : "Add Watchlist"}
+                        {isSelected ? "In Watchlist" : "Add to Watchlist"}
                       </button>
                     </div>
                   </article>
