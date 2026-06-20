@@ -585,7 +585,6 @@ function App() {
 
         const payload = (await response.json()) as AnimeListApiResponse;
         const normalized = payload.data
-          .filter((anime) => anime.status !== "Finished Airing")
           .map(normalizeAnime)
           .sort(byNearestRelease);
 
