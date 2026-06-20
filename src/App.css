@@ -28,9 +28,9 @@
 
 .countdown-panel {
   background:
-    linear-gradient(145deg, rgba(0, 165, 207, 0.14), rgba(0, 0, 0, 0.92) 38%),
-    linear-gradient(180deg, rgba(37, 161, 142, 0.12), rgba(6, 6, 6, 0.96));
-  border-color: rgba(0, 165, 207, 0.4);
+    linear-gradient(145deg, rgba(37, 161, 142, 0.14), rgba(0, 0, 0, 0.92) 42%),
+    linear-gradient(180deg, rgba(122, 229, 130, 0.08), rgba(6, 6, 6, 0.96));
+  border-color: rgba(37, 161, 142, 0.4);
 }
 
 .watchlist-panel {
@@ -328,7 +328,7 @@
 
 .primary-button {
   background: linear-gradient(135deg, var(--color-sky), var(--color-ice));
-  color: var(--color-deep);
+  color: var(--color-foam);
   box-shadow: 0 12px 24px rgba(0, 165, 207, 0.2);
 }
 

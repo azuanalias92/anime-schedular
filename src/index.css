@@ -8,11 +8,11 @@
 
 :root {
   color-scheme: dark;
-  --color-foam: #9fffcb;
-  --color-sky: #00a5cf;
-  --color-deep: #004e64;
-  --color-ice: #7ae582;
-  --color-blue: #25a18e;
+  --color-foam: #DBFADB;
+  --color-sky: #7AE582;
+  --color-deep: #62BA69;
+  --color-ice: #4D9452;
+  --color-blue: #376D3B;
   --text-primary: var(--color-foam);
   --text-secondary: var(--color-ice);
   --text-muted: #79dcc7;
