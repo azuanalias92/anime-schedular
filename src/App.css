@@ -579,20 +579,20 @@
   }
 
   .countdown-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.55rem;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
   }
 
   .countdown-cell {
-    padding: 0.72rem 0.55rem;
+    padding: 0.5rem 0.3rem;
   }
 
   .countdown-cell strong {
-    font-size: clamp(1.6rem, 8vw, 2.3rem);
+    font-size: clamp(1.2rem, 5vw, 1.8rem);
   }
 
   .countdown-cell span {
-    font-size: 0.82rem;
+    font-size: 0.62rem;
   }
 
   .meta-row {
@@ -719,7 +719,20 @@
   }
 
   .countdown-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.25rem;
+  }
+
+  .countdown-cell {
+    padding: 0.4rem 0.15rem;
+  }
+
+  .countdown-cell strong {
+    font-size: clamp(1rem, 5vw, 1.4rem);
+  }
+
+  .countdown-cell span {
+    font-size: 0.55rem;
   }
 
   .countdown-unavailable,
