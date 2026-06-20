@@ -130,6 +130,12 @@
   justify-content: space-between;
 }
 
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .muted,
 .watchlist-card p,
 .release-copy {
@@ -610,6 +616,10 @@
   .panel-topline,
   .section-heading {
     gap: 0.3rem;
+  }
+
+  .section-actions {
+    align-self: flex-start;
   }
 
   .toolbar {

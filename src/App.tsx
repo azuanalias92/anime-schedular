@@ -9,6 +9,7 @@ type AnimeApiItem = {
   mal_id: number
   title: string
   title_english: string | null
+  title_japanese?: string | null
   images: {
     jpg?: {
       image_url?: string | null
@@ -132,6 +133,15 @@ function MinusIcon() {
   )
 }
 
+function ClearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
+      <path d="M6 6l12 12" />
+      <path d="M18 6 6 18" />
+    </svg>
+  )
+}
+
 function ChevronDownIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
@@ -206,6 +216,26 @@ function stripSynopsis(synopsis: string | null): string {
   }
 
   return synopsis.replace(/\s+/g, ' ').trim()
+}
+
+function normalizeTitleMatchText(value: string | null | undefined): string {
+  if (!value) {
+    return ''
+  }
+
+  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isExactAnimeTitleMatch(query: string, anime: AnimeApiItem): boolean {
+  const normalizedQuery = normalizeTitleMatchText(query)
+
+  if (!normalizedQuery) {
+    return false
+  }
+
+  return [anime.title, anime.title_english, anime.title_japanese].some(
+    (title) => normalizeTitleMatchText(title) === normalizedQuery,
+  )
 }
 
 function getWeekdayIndex(day: string | null): number | null {
@@ -427,6 +457,20 @@ function byNearestRelease(a: AnimeCardData, b: AnimeCardData): number {
   const bTime = b.releaseAt ? new Date(b.releaseAt).getTime() : Number.POSITIVE_INFINITY
 
   return aTime - bTime
+}
+
+function toFutureTimeOrInfinity(isoDate: string | null, now: number): number {
+  if (!isoDate) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  const target = new Date(isoDate).getTime()
+
+  if (Number.isNaN(target) || target < now) {
+    return Number.POSITIVE_INFINITY
+  }
+
+  return target
 }
 
 function formatCountdown(releaseAt: string | null, now: number): CountdownParts | null {
@@ -681,7 +725,11 @@ function App() {
       }
 
       const payload = (await response.json()) as AnimeListApiResponse
-      const normalized = payload.data.map(normalizeAnime).sort(byNearestRelease)
+      const normalized = payload.data
+        .filter((anime) => anime.status !== 'Finished Airing')
+        .filter((anime) => isExactAnimeTitleMatch(query, anime))
+        .map(normalizeAnime)
+        .sort(byNearestRelease)
 
       setSearchResults((currentList) =>
         mode === 'replace' ? normalized : mergeAnimeCards(currentList, normalized),
@@ -740,22 +788,29 @@ function App() {
 
   const sortedWatchlist = useMemo(() => [...watchlist].sort(byNearestRelease), [watchlist])
 
-  const nextCountdownAnime = useMemo(() => {
-    return (
-      sortedWatchlist.find((anime) => {
-        if (!anime.releaseAt) {
-          return false
-        }
-
-        return new Date(anime.releaseAt).getTime() >= now
-      }) || sortedWatchlist[0] || null
-    )
-  }, [now, sortedWatchlist])
-
-  const countdown = useMemo(
-    () => formatCountdown(nextCountdownAnime?.releaseAt ?? null, now),
-    [nextCountdownAnime, now],
+  const watchlistWithNextEpisode = useMemo(
+    () =>
+      sortedWatchlist
+        .map((anime) => ({
+          anime,
+          nextEpisodeAt: resolveNextEpisodeAt(anime, now),
+        }))
+        .sort(
+          (a, b) =>
+            toFutureTimeOrInfinity(a.nextEpisodeAt, now) - toFutureTimeOrInfinity(b.nextEpisodeAt, now),
+        ),
+    [now, sortedWatchlist],
   )
+
+  const nextCountdownEntry = useMemo(
+    () => watchlistWithNextEpisode.find((entry) => entry.nextEpisodeAt) || watchlistWithNextEpisode[0] || null,
+    [watchlistWithNextEpisode],
+  )
+
+  const nextCountdownAnime = nextCountdownEntry?.anime ?? null
+  const nextCountdownAt = nextCountdownEntry?.nextEpisodeAt ?? null
+
+  const countdown = useMemo(() => formatCountdown(nextCountdownAt, now), [nextCountdownAt, now])
 
   function toggleWatchlist(anime: AnimeCardData) {
     setWatchlist((currentWatchlist) => {
@@ -785,7 +840,7 @@ function App() {
     <main className="app-shell">
       <section className="countdown-panel" aria-labelledby="next-release-title">
         <div className="panel-topline">
-          <span className="panel-tag">Next selected anime</span>
+          <span className="panel-tag">Upcoming episode</span>
           {lastUpdated ? (
             <span className="muted">
               Updated {formatLocalDateTime(lastUpdated)}
@@ -804,18 +859,18 @@ function App() {
               <div>
                 <h2 id="next-release-title">{nextCountdownAnime.title}</h2>
                 <p className="release-copy">
-                  {formatRelativeRelease(nextCountdownAnime.releaseAt, now)}
+                  {formatRelativeRelease(nextCountdownAt, now)}
                 </p>
                 <div className="meta-row">
                   <span>{nextCountdownAnime.seasonLabel}</span>
                   <span>{nextCountdownAnime.studio}</span>
-                  <span>{nextCountdownAnime.releaseLabel}</span>
+                  <span>{formatNextEpisodeLabel(nextCountdownAt)}</span>
                   <span>{userTimeZone}</span>
                 </div>
               </div>
             </div>
 
-            <div className="countdown-grid" aria-label="Release countdown">
+            <div className="countdown-grid" aria-label="Next episode countdown">
               {countdown ? (
                 <>
                   <div className="countdown-cell">
@@ -837,8 +892,8 @@ function App() {
                 </>
               ) : (
                 <div className="countdown-unavailable">
-                  <strong>Date TBA</strong>
-                  <span>A concrete release timestamp is not available for this title yet.</span>
+                  <strong>Next Episode TBA</strong>
+                  <span>A concrete next episode timestamp is not available for this title yet.</span>
                 </div>
               )}
             </div>
@@ -865,7 +920,19 @@ function App() {
             <span className="eyebrow">Your watchlist</span>
             <h2 id="watchlist-title">Selected AniCount picks</h2>
           </div>
-          <span className="muted">{watchlist.length} anime</span>
+          <div className="section-actions">
+            <span className="muted">{watchlist.length} anime</span>
+            <button
+              type="button"
+              className="ghost-button icon-only-button"
+              onClick={clearWatchlist}
+              disabled={watchlist.length === 0}
+              aria-label="Clear watchlist"
+              title="Clear watchlist"
+            >
+              <TrashIcon />
+            </button>
+          </div>
         </div>
 
         {sortedWatchlist.length > 0 ? (
@@ -877,19 +944,7 @@ function App() {
                   <h3>{anime.title}</h3>
                   <p>
                     Next ep:{' '}
-                    {formatNextEpisodeLabel(
-                      resolveNextEpisodeAt(
-                        {
-                          airing: anime.airing,
-                          releaseAt: anime.releaseAt,
-                          broadcastDay: anime.broadcastDay,
-                          broadcastTime: anime.broadcastTime,
-                          broadcastTimezone: anime.broadcastTimezone,
-                          status: anime.status,
-                        },
-                        now,
-                      ),
-                    )}
+                      {formatNextEpisodeLabel(resolveNextEpisodeAt(anime, now))}
                   </p>
                 </div>
                 <button
@@ -935,26 +990,20 @@ function App() {
           <button
             type="button"
             className="secondary-button icon-only-button"
-            onClick={() =>
-              isSearchMode
-                ? void searchAnimeCatalog(searchQuery, 1, 'replace')
-                : void loadUpcomingAnime(1, 'replace')
-            }
-            disabled={isLoading || isRefreshing}
-            aria-label={isSearchMode ? 'Refresh search results' : 'Refresh upcoming anime'}
-            title={isSearchMode ? 'Refresh search results' : 'Refresh upcoming anime'}
+            onClick={() => {
+              if (isSearchMode) {
+                setSearch('')
+                setError(null)
+                return
+              }
+
+              void loadUpcomingAnime(1, 'replace')
+            }}
+            disabled={isSearchMode ? searchQuery.length === 0 : isLoading || isRefreshing}
+            aria-label={isSearchMode ? 'Clear search results' : 'Refresh upcoming anime'}
+            title={isSearchMode ? 'Clear search results' : 'Refresh upcoming anime'}
           >
-            <RefreshIcon spinning={isRefreshing || isLoading} />
-          </button>
-          <button
-            type="button"
-            className="ghost-button icon-only-button"
-            onClick={clearWatchlist}
-            disabled={watchlist.length === 0}
-            aria-label="Clear watchlist"
-            title="Clear watchlist"
-          >
-            <TrashIcon />
+            {isSearchMode ? <ClearIcon /> : <RefreshIcon spinning={isRefreshing || isLoading} />}
           </button>
         </div>
       </section>
