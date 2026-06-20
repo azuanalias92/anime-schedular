@@ -412,14 +412,32 @@ function readStoredWatchlist(): AnimeCardData[] {
 
     return parsed
       .filter((item) => typeof item?.malId === "number" && typeof item?.title === "string")
-      .map((item) => ({
-        ...item,
-        airing: Boolean(item.airing),
-        releaseLabel: formatLocalDateTime(item.releaseAt),
-        broadcastDay: item.broadcastDay ?? null,
-        broadcastTime: item.broadcastTime ?? null,
-        broadcastTimezone: item.broadcastTimezone ?? null,
-      }))
+      .map((item) => {
+        const imageUrl = typeof item.imageUrl === "string" && item.imageUrl.startsWith("https://")
+          ? item.imageUrl
+          : "/favicon.svg";
+
+        return {
+          malId: item.malId,
+          title: item.title,
+          imageUrl,
+          airing: Boolean(item.airing),
+          releaseAt: typeof item.releaseAt === "string" ? item.releaseAt : null,
+          releaseLabel: formatLocalDateTime(typeof item.releaseAt === "string" ? item.releaseAt : null),
+          broadcastLabel: typeof item.broadcastLabel === "string" ? item.broadcastLabel : "Broadcast time not announced",
+          broadcastDay: typeof item.broadcastDay === "string" ? item.broadcastDay : null,
+          broadcastTime: typeof item.broadcastTime === "string" ? item.broadcastTime : null,
+          broadcastTimezone: typeof item.broadcastTimezone === "string" ? item.broadcastTimezone : null,
+          seasonLabel: typeof item.seasonLabel === "string" ? item.seasonLabel : "Upcoming anime",
+          synopsis: typeof item.synopsis === "string" ? item.synopsis : "No synopsis available yet.",
+          status: typeof item.status === "string" ? item.status : "Unknown",
+          score: typeof item.score === "number" ? item.score : null,
+          episodes: typeof item.episodes === "number" ? item.episodes : null,
+          members: typeof item.members === "number" ? item.members : null,
+          studio: typeof item.studio === "string" ? item.studio : "Studio TBA",
+          genres: Array.isArray(item.genres) ? item.genres.filter((g: unknown) => typeof g === "string") : [],
+        };
+      })
       .sort(byNearestRelease);
   } catch {
     return [];
