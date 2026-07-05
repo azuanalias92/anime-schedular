@@ -15,6 +15,17 @@ const API_BASE = "https://api.jikan.moe/v4";
 const PAGE_SIZE = 24;
 const WATCHLIST_STORAGE_KEY = "anime-countdown-watchlist";
 
+async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
+  for (let i = 0; i <= retries; i++) {
+    const res = await fetch(url);
+    if (res.ok || res.status === 404) return res;
+    // Only retry on gateway/server errors
+    if (res.status < 500 || i === retries) return res;
+    await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+  }
+  return fetch(url); // unreachable, satisfies TS
+}
+
 type AnimeApiItem = {
   mal_id: number;
   title: string;
@@ -642,7 +653,7 @@ function App() {
       }
 
       try {
-        const response = await fetch(`${API_BASE}/seasons/upcoming?page=${nextPage}&limit=${PAGE_SIZE}`);
+        const response = await fetchWithRetry(`${API_BASE}/seasons/upcoming?page=${nextPage}&limit=${PAGE_SIZE}`);
 
         if (!response.ok) {
           throw new Error(`Anime data request failed with status ${response.status}`);
@@ -670,7 +681,7 @@ function App() {
   );
 
   const searchAnimeCatalog = useCallback(
-    async (query: string, nextPage: number, mode: "replace" | "append", signal?: AbortSignal) => {
+    async (query: string, nextPage: number, mode: "replace" | "append") => {
       if (!query) {
         setSearchResults([]);
         setSearchPage(1);
@@ -687,7 +698,7 @@ function App() {
 
       try {
         const requestUrl = `${API_BASE}/anime?q=${encodeURIComponent(query)}&page=${nextPage}&limit=${PAGE_SIZE}`;
-        const response = await fetch(requestUrl, { signal });
+        const response = await fetchWithRetry(requestUrl);
 
         if (!response.ok) {
           throw new Error(`Anime search request failed with status ${response.status}`);
@@ -702,10 +713,6 @@ function App() {
         setSearchPage(nextPage);
         setSearchHasNextPage(payload.pagination.has_next_page);
       } catch (caughtError) {
-        if (caughtError instanceof DOMException && caughtError.name === "AbortError") {
-          return;
-        }
-
         const message = caughtError instanceof Error ? caughtError.message : "Unable to search anime right now.";
         setError(message);
       } finally {
@@ -729,13 +736,11 @@ function App() {
       return;
     }
 
-    const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
-      void searchAnimeCatalog(searchQuery, 1, "replace", controller.signal);
+      void searchAnimeCatalog(searchQuery, 1, "replace");
     }, 300);
 
     return () => {
-      controller.abort();
       window.clearTimeout(timeoutId);
     };
   }, [searchAnimeCatalog, searchQuery]);
