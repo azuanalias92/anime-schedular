@@ -18,10 +18,10 @@ const WATCHLIST_STORAGE_KEY = "anime-countdown-watchlist";
 async function fetchWithRetry(url: string, retries = 2): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
     const res = await fetch(url);
-    if (res.ok || res.status === 404) return res;
-    // Only retry on gateway/server errors
+    if (res.ok || res.status === 404 || res.status === 429) return res;
+    // Only retry on 5xx gateway/server errors
     if (res.status < 500 || i === retries) return res;
-    await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+    await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
   }
   return fetch(url); // unreachable, satisfies TS
 }
@@ -656,6 +656,9 @@ function App() {
         const response = await fetchWithRetry(`${API_BASE}/seasons/upcoming?page=${nextPage}&limit=${PAGE_SIZE}`);
 
         if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Jikan API rate limited — wait a moment and try again.");
+          }
           throw new Error(`Anime data request failed with status ${response.status}`);
         }
 
@@ -701,6 +704,9 @@ function App() {
         const response = await fetchWithRetry(requestUrl);
 
         if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error("Jikan API rate limited — wait a moment and try again.");
+          }
           throw new Error(`Anime search request failed with status ${response.status}`);
         }
 
