@@ -2,6 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 declare const __APP_VERSION__: string;
 import "./App.css";
+import {
+  getStoredUser,
+  loginWithGoogle,
+  clearAuth,
+  fetchRemoteWatchlist,
+  pushWatchlist,
+  type AuthUser,
+} from "./auth";
 
 const API_BASE = "https://api.jikan.moe/v4";
 const PAGE_SIZE = 24;
@@ -463,6 +471,8 @@ function App() {
   const [now, setNow] = useState(() => Date.now());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(getStoredUser);
+  const [isSyncing, setIsSyncing] = useState(false);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
 
@@ -495,6 +505,85 @@ function App() {
     const prompt = (window as any).__pwaInstallPrompt;
     if (prompt) setInstallPrompt(prompt);
   }, []);
+
+  // ─── Google Sign-In ────────────────────────────────────────────────────────
+
+  const handleGoogleLogin = useCallback(async () => {
+    const google = (window as any).google;
+    if (!google?.accounts?.id) {
+      alert("Google Sign-In is not available right now.");
+      return;
+    }
+
+    google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // User dismissed — try showing the button instead
+        return;
+      }
+    });
+  }, []);
+
+  // Listen for Google credential response
+  useEffect(() => {
+    const google = (window as any).google;
+    if (!google?.accounts?.id) return;
+
+    const handleCredential = async (response: { credential: string }) => {
+      try {
+        const { user } = await loginWithGoogle(response.credential);
+        setAuthUser(user);
+
+        // Fetch remote watchlist and merge with local
+        setIsSyncing(true);
+        const remoteItems = await fetchRemoteWatchlist();
+        if (remoteItems.length > 0) {
+          setWatchlist((current) => {
+            const merged = [...current];
+
+            // Add remote items not in local
+            for (const remoteItem of remoteItems) {
+              if (!merged.some((local) => local.malId === remoteItem.malId)) {
+                merged.push(remoteItem as any);
+              }
+            }
+
+            return dedupeAnimeCards(merged).sort(byNearestRelease);
+          });
+        }
+        setIsSyncing(false);
+      } catch (err) {
+        console.error("Google login failed:", err);
+        setIsSyncing(false);
+      }
+    };
+
+    google.accounts.id.initialize({
+      client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
+      callback: handleCredential,
+      auto_select: false,
+    });
+
+    return () => {
+      google.accounts.id.cancel();
+    };
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    clearAuth();
+    setAuthUser(null);
+  }, []);
+
+  // ─── Sync watchlist to cloud on changes (debounced) ────────────────────────
+
+  useEffect(() => {
+    if (!authUser || watchlist.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      void pushWatchlist(watchlist);
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [authUser, watchlist]);
 
   const syncWatchlist = useCallback((incomingList: AnimeCardData[]) => {
     setWatchlist((currentWatchlist) => {
@@ -710,6 +799,28 @@ function App() {
 
   return (
     <main className="app-shell">
+      {/* ─── Auth Banner ─── */}
+      {authUser ? (
+        <div className="auth-banner">
+          <span className="auth-user-info">
+            {authUser.avatarUrl ? (
+              <img src={authUser.avatarUrl} alt="" className="auth-avatar" />
+            ) : null}
+            <span className="auth-name">{authUser.name}</span>
+          </span>
+          <button type="button" className="ghost-button" onClick={handleLogout}>
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <div className="auth-banner">
+          <span>Sign in to sync your watchlist across devices</span>
+          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={isSyncing}>
+            {isSyncing ? "Syncing…" : "Sign in with Google"}
+          </button>
+        </div>
+      )}
+
       <section className="countdown-panel" aria-labelledby="next-release-title">
         <div>
           <span className="eyebrow">Upcoming Anime</span>
