@@ -507,6 +507,7 @@ function App() {
   }, []);
 
   // ─── Google Sign-In ────────────────────────────────────────────────────────
+  const [googleReady, setGoogleReady] = useState(false);
 
   const handleGoogleLogin = useCallback(async () => {
     const google = (window as any).google;
@@ -517,54 +518,64 @@ function App() {
 
     google.accounts.id.prompt((notification: any) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        // User dismissed — try showing the button instead
         return;
       }
     });
   }, []);
 
-  // Listen for Google credential response
+  // Initialize Google Identity Services — retry until script is loaded
   useEffect(() => {
-    const google = (window as any).google;
-    if (!google?.accounts?.id) return;
+    let cancelled = false;
+    let attempts = 0;
 
-    const handleCredential = async (response: { credential: string }) => {
-      try {
-        const { user } = await loginWithGoogle(response.credential);
-        setAuthUser(user);
-
-        // Fetch remote watchlist and merge with local
-        setIsSyncing(true);
-        const remoteItems = await fetchRemoteWatchlist();
-        if (remoteItems.length > 0) {
-          setWatchlist((current) => {
-            const merged = [...current];
-
-            // Add remote items not in local
-            for (const remoteItem of remoteItems) {
-              if (!merged.some((local) => local.malId === remoteItem.malId)) {
-                merged.push(remoteItem as any);
-              }
-            }
-
-            return dedupeAnimeCards(merged).sort(byNearestRelease);
-          });
+    const tryInit = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id) {
+        if (attempts < 50 && !cancelled) {
+          attempts++;
+          setTimeout(tryInit, 200);
         }
-        setIsSyncing(false);
-      } catch (err) {
-        console.error("Google login failed:", err);
-        setIsSyncing(false);
+        return;
       }
+
+      google.accounts.id.initialize({
+        client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
+        callback: async (response: { credential: string }) => {
+          try {
+            const { user } = await loginWithGoogle(response.credential);
+            setAuthUser(user);
+
+            setIsSyncing(true);
+            const remoteItems = await fetchRemoteWatchlist();
+            if (remoteItems.length > 0) {
+              setWatchlist((current) => {
+                const merged = [...current];
+                for (const remoteItem of remoteItems) {
+                  if (!merged.some((local) => local.malId === remoteItem.malId)) {
+                    merged.push(remoteItem as any);
+                  }
+                }
+                return dedupeAnimeCards(merged).sort(byNearestRelease);
+              });
+            }
+            setIsSyncing(false);
+          } catch (err) {
+            console.error("Google login failed:", err);
+            setIsSyncing(false);
+          }
+        },
+        auto_select: false,
+      });
+
+      if (!cancelled) setGoogleReady(true);
     };
 
-    google.accounts.id.initialize({
-      client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
-      callback: handleCredential,
-      auto_select: false,
-    });
+    tryInit();
 
     return () => {
-      google.accounts.id.cancel();
+      cancelled = true;
+      const google = (window as any).google;
+      if (google?.accounts?.id) google.accounts.id.cancel();
     };
   }, []);
 
@@ -815,8 +826,8 @@ function App() {
       ) : (
         <div className="auth-banner">
           <span>Sign in to sync your watchlist across devices</span>
-          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={isSyncing}>
-            {isSyncing ? "Syncing…" : "Sign in with Google"}
+          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={isSyncing || !googleReady}>
+            {!googleReady ? "Loading…" : isSyncing ? "Syncing…" : "Sign in with Google"}
           </button>
         </div>
       )}
