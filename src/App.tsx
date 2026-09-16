@@ -138,6 +138,14 @@ function ClearIcon() {
   );
 }
 
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 function getUserLocale(): string | undefined {
   if (typeof navigator === "undefined") {
     return undefined;
@@ -394,7 +402,6 @@ function App() {
   const syncQueue = useRef(Promise.resolve());
   const requestVersion = useRef(0);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [showAllWatchlist, setShowAllWatchlist] = useState(false);
   const [failedRequest, setFailedRequest] = useState<{ query: string; page: number; mode: "replace" | "append" } | null>(null);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
@@ -785,30 +792,6 @@ function App() {
 
   return (
     <main className="app-shell">
-      <header className="app-heading"><div><h1>AniCount</h1><p>Your next anime episode, at a glance.</p></div><a href="#upcoming-title">Browse anime</a></header>
-      <section className="toolbar" aria-label="Anime controls">
-        <label className="search-field">
-          <span className="eyebrow">Search all anime</span>
-          <input type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
-        </label>
-        {isSearchMode ? (
-          <div className="toolbar-actions">
-            <button
-              type="button"
-              className="secondary-button icon-only-button"
-              onClick={() => {
-                handleSearchChange("");
-              }}
-              aria-label="Clear search results"
-              title="Clear search results"
-            >
-              <ClearIcon />
-            </button>
-          </div>
-        ) : null}
-      </section>
-
-
       {/* ─── Auth Banner ─── */}
       {authUser ? (
         <div className="auth-banner">
@@ -832,7 +815,7 @@ function App() {
       )}
 
       {authError && <div className="status-banner error-banner" role="alert">{authError}</div>}
-      <div className="sync-status" role="status">{syncStatus} {syncError && <button type="button" className="ghost-button" onClick={() => setSyncRetry(value => value + 1)}>Retry sync</button>}</div>
+      {authUser && <div className="muted" role="status">{syncStatus} {syncError && <button type="button" className="ghost-button" onClick={() => setSyncRetry(value => value + 1)}>Retry sync</button>}</div>}
       <section className="countdown-panel" aria-labelledby="next-release-title">
         <div>
           <span className="eyebrow">Upcoming Anime</span>
@@ -883,12 +866,12 @@ function App() {
         ) : (
           <div className="empty-panel">
             <h2 id="next-release-title">Build your AniCount list</h2>
-            <p>Search for a title above or browse below to start your first countdown.</p>
+            <p>Select one or more anime below to pin them into your watchlist.</p>
           </div>
         )}
       </section>
 
-      {watchlist.length > 0 && <section className="watchlist-panel" aria-labelledby="watchlist-title">
+      <section className="watchlist-panel" aria-labelledby="watchlist-title">
         <div className="section-heading">
           <div>
             <span className="eyebrow">Your watchlist</span>
@@ -930,7 +913,7 @@ function App() {
 
         {sortedWatchlist.length > 0 ? (
           <div className="watchlist-items">
-            {(showAllWatchlist ? sortedWatchlist : sortedWatchlist.slice(0, 3)).map((anime) => (
+            {sortedWatchlist.map((anime) => (
               <article key={anime.malId} className="watchlist-card">
                 <img src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
                 <div className="watchlist-card-copy">
@@ -955,8 +938,7 @@ function App() {
             <span>Add titles from the upcoming list to start multiple countdowns.</span>
           </div>
         )}
-        {watchlist.length > 3 && <button type="button" className="secondary-button" aria-expanded={showAllWatchlist} onClick={() => setShowAllWatchlist(value => !value)}>{showAllWatchlist ? "Show fewer" : `Show all ${watchlist.length} anime`}</button>}
-      </section>}
+      </section>
 
       {installPrompt ? (
         <div className="status-banner" style={{ borderColor: "rgba(122, 229, 130, 0.4)" }}>
@@ -998,6 +980,28 @@ function App() {
           </button>
         </div>
       ) : null}
+
+      <section className="toolbar" aria-label="Anime controls">
+        <label className="search-field">
+          <span className="eyebrow">Search all anime</span>
+          <input type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
+        </label>
+        {isSearchMode ? (
+          <div className="toolbar-actions">
+            <button
+              type="button"
+              className="secondary-button icon-only-button"
+              onClick={() => {
+                handleSearchChange("");
+              }}
+              aria-label="Clear search results"
+              title="Clear search results"
+            >
+              <ClearIcon />
+            </button>
+          </div>
+        ) : null}
+      </section>
 
       <section className="upcoming-panel" aria-labelledby="upcoming-title">
         <div className="section-heading">
@@ -1053,7 +1057,7 @@ function App() {
                         aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                         title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                       >
-                        {isSelected ? "Remove from watchlist" : "Add to watchlist"}
+                        {isSelected ? "In Watchlist" : "Add to Watchlist"}
                       </button>
                     </div>
                   </article>
@@ -1065,13 +1069,13 @@ function App() {
               <div className="load-more-row">
                 <button
                   type="button"
-                  className="primary-button"
+                  className="primary-button icon-only-button"
                   onClick={() => (isSearchMode ? void searchAnimeCatalog(searchQuery, activePage + 1, "append") : void loadUpcomingAnime(activePage + 1, "append"))}
                   disabled={isLoadingMore}
                   aria-label={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
                   title={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
                 >
-                  {isLoadingMore ? "Loading…" : "Load more anime"}
+                  <ChevronDownIcon />
                 </button>
               </div>
             ) : null}
