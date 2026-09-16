@@ -2,12 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const securityHeaders = {
-  'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://api.jikan.moe; img-src 'self' https://cdn.myanimelist.net data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'none'",
-  'X-Content-Type-Options': 'nosniff',
-  'X-Frame-Options': 'DENY',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-}
+import deployment from './vercel.json'
+
+const securityHeaders = Object.fromEntries(deployment.headers[0].headers.map(({ key, value }) => [key, value]))
 
 // https://vite.dev/config/
 export default defineConfig({

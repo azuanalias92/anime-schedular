@@ -328,7 +328,7 @@
 
 .primary-button {
   background: linear-gradient(135deg, var(--color-sky), var(--color-ice));
-  color: var(--color-foam);
+  color: #081b0c;
   box-shadow: 0 12px 24px rgba(0, 165, 207, 0.2);
 }
 
@@ -598,7 +598,7 @@
   }
 
   .countdown-cell span {
-    font-size: 0.62rem;
+    font-size: 0.75rem;
   }
 
   .meta-row {
@@ -737,7 +737,7 @@
   }
 
   .countdown-cell span {
-    font-size: 0.55rem;
+    font-size: 0.75rem;
   }
 
   .countdown-unavailable,
@@ -805,4 +805,29 @@
 .auth-name {
   font-weight: 600;
   font-size: 0.85rem;
+}
+
+/* Keep discovery and release information easy to scan on small screens. */
+.app-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 0.5rem; }
+.app-heading h1 { margin: 0; font-size: 1.6rem; color: var(--text-primary); }
+.app-heading p, .sync-status { color: var(--text-muted); font-size: 0.9rem; }
+.app-heading a { color: var(--color-sky); white-space: nowrap; }
+.sync-status { padding: 0 0.5rem; }
+.countdown-unavailable { grid-column: 1 / -1; text-align: left; }
+.auth-banner { flex-wrap: wrap; }
+.watchlist-card h3, .countdown-copy h2 { overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .countdown-header { grid-template-columns: 64px minmax(0, 1fr); text-align: left; align-items: center; }
+  .countdown-art { width: 64px; border-radius: 12px; }
+  .countdown-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-heading { align-items: flex-start; }
+  .app-heading p { max-width: 220px; }
+  .anime-card { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; }
+  .anime-card-art { border-radius: 12px; margin-top: 0.75rem; }
+  .anime-card-body { min-width: 0; }
+  .card-synopsis { -webkit-line-clamp: 2; }
+  .watchlist-action { width: 2.75rem; height: 2.75rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }

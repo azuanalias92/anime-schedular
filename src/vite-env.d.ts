@@ -7,6 +7,13 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+interface GoogleIdentity {
+  initialize(options: { client_id: string; callback: (response: { credential: string }) => void; auto_select: boolean }): void;
+  prompt(callback: (notification: { isNotDisplayed(): boolean; isSkippedMoment(): boolean }) => void): void;
+  cancel(): void;
+}
+
 interface Window {
+  google?: { accounts: { id: GoogleIdentity } };
   __pwaInstallPrompt: BeforeInstallPromptEvent | null;
 }

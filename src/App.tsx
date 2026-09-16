@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 declare const __APP_VERSION__: string;
 import "./App.css";
@@ -15,9 +15,27 @@ const API_BASE = "https://graphql.anilist.co";
 const PAGE_SIZE = 24;
 const WATCHLIST_STORAGE_KEY = "anime-countdown-watchlist";
 
-async function fetchWithRetry(query: string, variables: Record<string, unknown> = {}, retries = 2): Promise<Response> {
+const MEDIA_FIELDS = `
+    id
+    title { romaji english native }
+    coverImage { large }
+    startDate { year month day }
+    season
+    seasonYear
+    status
+    description
+    averageScore
+    episodes
+    popularity
+    genres
+    studios { nodes { name } }
+    nextAiringEpisode { airingAt timeUntilAiring episode }
+  `;
+
+async function fetchWithRetry(query: string, variables: Record<string, unknown> = {}, retries = 2, signal?: AbortSignal): Promise<Response> {
   for (let i = 0; i <= retries; i++) {
     const res = await fetch(API_BASE, {
+      signal,
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ query, variables }),
@@ -116,14 +134,6 @@ function ClearIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
       <path d="M6 6l12 12" />
       <path d="M18 6 6 18" />
-    </svg>
-  );
-}
-
-function ChevronDownIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
-      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }
@@ -255,13 +265,6 @@ function byNearestRelease(a: AnimeCardData, b: AnimeCardData): number {
   return aTime - bTime;
 }
 
-function byRecentRelease(a: AnimeCardData, b: AnimeCardData): number {
-  const aTime = a.releaseAt ? new Date(a.releaseAt).getTime() : 0;
-  const bTime = b.releaseAt ? new Date(b.releaseAt).getTime() : 0;
-
-  return bTime - aTime;
-}
-
 function toFutureTimeOrInfinity(isoDate: string | null, now: number): number {
   if (!isoDate) {
     return Number.POSITIVE_INFINITY;
@@ -384,7 +387,15 @@ function App() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => window.__pwaInstallPrompt ?? null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(getStoredUser);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState("Saved on this device");
+  const [syncError, setSyncError] = useState(false);
+  const [syncReadyUser, setSyncReadyUser] = useState<string | null>(null);
+  const [syncRetry, setSyncRetry] = useState(0);
+  const syncQueue = useRef(Promise.resolve());
+  const requestVersion = useRef(0);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [showAllWatchlist, setShowAllWatchlist] = useState(false);
+  const [failedRequest, setFailedRequest] = useState<{ query: string; page: number; mode: "replace" | "append" } | null>(null);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
 
@@ -422,92 +433,110 @@ function App() {
   // ─── Google Sign-In ────────────────────────────────────────────────────────
   const [googleReady, setGoogleReady] = useState(false);
 
-  const handleGoogleLogin = useCallback(async () => {
-    const google = (window as any).google;
+  const handleGoogleLogin = useCallback(() => {
+    setAuthError(null);
+    const google = window.google;
     if (!google?.accounts?.id) {
-      alert("Google Sign-In is not available right now.");
+      setAuthError("Sign-in is unavailable. You can keep using your watchlist on this device. Reload to try again.");
       return;
     }
-
-    google.accounts.id.prompt((notification: any) => {
+    google.accounts.id.prompt((notification) => {
       if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        return;
+        setAuthError("Sign-in did not open. Check your browser's sign-in settings and try again. Your local watchlist is safe.");
       }
     });
   }, []);
 
-  // Initialize Google Identity Services — retry until script is loaded
   useEffect(() => {
     let cancelled = false;
     let attempts = 0;
-
+    let timer: number;
     const tryInit = () => {
-      const google = (window as any).google;
+      if (cancelled) return;
+      const google = window.google;
       if (!google?.accounts?.id) {
-        if (attempts < 50 && !cancelled) {
-          attempts++;
-          setTimeout(tryInit, 200);
-        }
+        if (attempts++ < 50) timer = window.setTimeout(tryInit, 200);
+        else setAuthError("Sign-in could not load. Your watchlist still works on this device. Reload to try again.");
         return;
       }
-
       google.accounts.id.initialize({
         client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
         callback: async (response: { credential: string }) => {
           try {
             const { user } = await loginWithGoogle(response.credential);
+            if (cancelled) return;
+            setSyncReadyUser(null);
+            setAuthError(null);
             setAuthUser(user);
-
-            setIsSyncing(true);
-            const remoteItems = await fetchRemoteWatchlist();
-            if (remoteItems.length > 0) {
-              setWatchlist((current) => {
-                const merged = [...current];
-                for (const remoteItem of remoteItems) {
-                  if (!merged.some((local) => local.malId === remoteItem.malId)) {
-                    merged.push(remoteItem as any);
-                  }
-                }
-                return dedupeAnimeCards(merged).sort(byNearestRelease);
-              });
-            }
-            setIsSyncing(false);
-          } catch (err) {
-            console.error("Google login failed:", err);
-            setIsSyncing(false);
+          } catch {
+            if (!cancelled) setAuthError("Sign-in failed. Please try again. Your local watchlist is safe.");
           }
         },
         auto_select: false,
       });
-
-      if (!cancelled) setGoogleReady(true);
+      setGoogleReady(true);
     };
-
-    tryInit();
-
+    timer = window.setTimeout(tryInit, 0);
     return () => {
       cancelled = true;
-      const google = (window as any).google;
-      if (google?.accounts?.id) google.accounts.id.cancel();
+      window.clearTimeout(timer);
+      window.google?.accounts.id.cancel();
     };
   }, []);
 
   const handleLogout = useCallback(() => {
     clearAuth();
     setAuthUser(null);
+    setSyncReadyUser(null);
+    setSyncError(false);
+    setSyncStatus("Saved on this device");
   }, []);
 
-  // ─── Sync watchlist to cloud on changes (debounced) ────────────────────────
+  // Read cloud data before uploading, including when restoring a signed-in session.
+  useEffect(() => {
+    if (!authUser || syncReadyUser === authUser.id) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setSyncStatus("Loading saved watchlist…");
+      setSyncError(false);
+      try {
+        const remote = await fetchRemoteWatchlist();
+        if (cancelled) return;
+        setWatchlist(current => dedupeAnimeCards([...current, ...remote.filter(item =>
+          typeof item.malId === "number" && typeof item.title === "string" && typeof item.status === "string"
+        ) as AnimeCardData[]]).sort(byNearestRelease));
+        setSyncReadyUser(authUser.id);
+      } catch {
+        if (!cancelled) {
+          setSyncError(true);
+          setSyncStatus("Cloud sync failed. Your watchlist is saved on this device.");
+        }
+      }
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [authUser, syncReadyUser, syncRetry]);
 
   useEffect(() => {
-    if (!authUser || watchlist.length === 0) return;
-
+    if (!authUser || syncReadyUser !== authUser.id) return;
+    let cancelled = false;
+    const statusTimer = window.setTimeout(() => { setSyncStatus("Saving…"); setSyncError(false); }, 0);
     const timer = window.setTimeout(() => {
-      void pushWatchlist(watchlist);
-    }, 2000);
-
-    return () => window.clearTimeout(timer);
-  }, [authUser, watchlist]);
+      // Serialize writes so an older request cannot overwrite a newer watchlist.
+      syncQueue.current = syncQueue.current.then(async () => {
+        if (cancelled) return;
+        try {
+          if (!await pushWatchlist(watchlist)) throw new Error("Sync failed");
+          if (!cancelled) setSyncStatus("Saved across your devices");
+        } catch {
+          if (!cancelled) {
+            setSyncError(true);
+            setSyncStatus("Cloud sync failed. Your watchlist is saved on this device.");
+          }
+        }
+      });
+    }, 700);
+    return () => { cancelled = true; window.clearTimeout(timer); window.clearTimeout(statusTimer); };
+  }, [authUser, syncReadyUser, watchlist, syncRetry]);
 
   const syncWatchlist = useCallback((incomingList: AnimeCardData[]) => {
     setWatchlist((currentWatchlist) => {
@@ -547,27 +576,12 @@ function App() {
 
   // ─── GraphQL query fragments ──────────────────────────────────────────────
 
-  const MEDIA_FIELDS = `
-    id
-    title { romaji english native }
-    coverImage { large }
-    startDate { year month day }
-    season
-    seasonYear
-    status
-    description
-    averageScore
-    episodes
-    popularity
-    genres
-    studios { nodes { name } }
-    nextAiringEpisode { airingAt timeUntilAiring episode }
-  `;
-
   const loadUpcomingAnime = useCallback(
     async (nextPage: number, mode: "replace" | "append") => {
+      const version = ++requestVersion.current;
+      setError(null);
+      setFailedRequest(null);
       if (mode === "replace") {
-        setError(null);
         setIsLoading(nextPage === 1);
       } else {
         setIsLoadingMore(true);
@@ -589,6 +603,7 @@ function App() {
         }
 
         const payload = (await response.json()) as AnimeListApiResponse;
+        if (version !== requestVersion.current) return;
         const normalized = dedupeAnimeCards(payload.data.Page.media.map(normalizeAnime).filter((anime) => anime.status !== "Finished Airing")).sort(
           byNearestRelease,
         );
@@ -599,18 +614,23 @@ function App() {
         setUpcomingPage(nextPage);
         setUpcomingHasNextPage(payload.data.Page.pageInfo.hasNextPage);
       } catch (caughtError) {
+        if (version !== requestVersion.current || (caughtError instanceof DOMException && caughtError.name === "AbortError")) return;
         const message = caughtError instanceof Error ? caughtError.message : "Unable to load upcoming anime right now.";
         setError(message);
+        setFailedRequest({ query: "", page: nextPage, mode });
       } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
+        if (version === requestVersion.current) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
       }
     },
     [syncWatchlist],
   );
 
   const searchAnimeCatalog = useCallback(
-    async (query: string, nextPage: number, mode: "replace" | "append") => {
+    async (query: string, nextPage: number, mode: "replace" | "append", signal?: AbortSignal) => {
+      const version = ++requestVersion.current;
       if (!query) {
         setSearchResults([]);
         setSearchPage(1);
@@ -618,8 +638,9 @@ function App() {
         return;
       }
 
+      setError(null);
+      setFailedRequest(null);
       if (mode === "replace") {
-        setError(null);
         setIsLoading(true);
       } else {
         setIsLoadingMore(true);
@@ -634,26 +655,31 @@ function App() {
             }
           }
         }`;
-        const response = await fetchWithRetry(gql, { search: query, page: nextPage, perPage: PAGE_SIZE });
+        const response = await fetchWithRetry(gql, { search: query, page: nextPage, perPage: PAGE_SIZE }, 2, signal);
 
         if (!response.ok) {
           throw new Error(`Anime search request failed with status ${response.status}`);
         }
 
         const payload = (await response.json()) as AnimeListApiResponse;
-        const normalized = dedupeAnimeCards(payload.data.Page.media.map(normalizeAnime)).sort(byRecentRelease);
+        if (version !== requestVersion.current) return;
+        const normalized = dedupeAnimeCards(payload.data.Page.media.map(normalizeAnime));
 
-        setSearchResults((currentList) => (mode === "replace" ? normalized : mergeAnimeCards(currentList, normalized)));
+        setSearchResults((currentList) => (mode === "replace" ? normalized : dedupeAnimeCards([...currentList, ...normalized])));
         syncWatchlist(normalized);
 
         setSearchPage(nextPage);
         setSearchHasNextPage(payload.data.Page.pageInfo.hasNextPage);
       } catch (caughtError) {
+        if (version !== requestVersion.current || (caughtError instanceof DOMException && caughtError.name === "AbortError")) return;
         const message = caughtError instanceof Error ? caughtError.message : "Unable to search anime right now.";
         setError(message);
+        setFailedRequest({ query, page: nextPage, mode });
       } finally {
-        setIsLoading(false);
-        setIsLoadingMore(false);
+        if (version === requestVersion.current) {
+          setIsLoading(false);
+          setIsLoadingMore(false);
+        }
       }
     },
     [syncWatchlist],
@@ -672,11 +698,13 @@ function App() {
       return;
     }
 
+    const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
-      void searchAnimeCatalog(searchQuery, 1, "replace");
+      void searchAnimeCatalog(searchQuery, 1, "replace", controller.signal);
     }, 300);
 
     return () => {
+      controller.abort();
       window.clearTimeout(timeoutId);
     };
   }, [searchAnimeCatalog, searchQuery]);
@@ -742,15 +770,45 @@ function App() {
   }
 
   function handleSearchChange(value: string) {
+    requestVersion.current++;
     setSearch(value);
+    setIsLoading(Boolean(value.trim()));
+    setIsLoadingMore(false);
+    setSearchResults([]);
+    setError(null);
+    setFailedRequest(null);
 
-    if (!value.trim()) {
-      setError(null);
+    if (!value.trim() && upcomingAnime.length === 0) {
+      void loadUpcomingAnime(1, "replace");
     }
   }
 
   return (
     <main className="app-shell">
+      <header className="app-heading"><div><h1>AniCount</h1><p>Your next anime episode, at a glance.</p></div><a href="#upcoming-title">Browse anime</a></header>
+      <section className="toolbar" aria-label="Anime controls">
+        <label className="search-field">
+          <span className="eyebrow">Search all anime</span>
+          <input type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
+        </label>
+        {isSearchMode ? (
+          <div className="toolbar-actions">
+            <button
+              type="button"
+              className="secondary-button icon-only-button"
+              onClick={() => {
+                handleSearchChange("");
+              }}
+              aria-label="Clear search results"
+              title="Clear search results"
+            >
+              <ClearIcon />
+            </button>
+          </div>
+        ) : null}
+      </section>
+
+
       {/* ─── Auth Banner ─── */}
       {authUser ? (
         <div className="auth-banner">
@@ -767,12 +825,14 @@ function App() {
       ) : (
         <div className="auth-banner">
           <span>Sign in to sync your watchlist across devices</span>
-          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={isSyncing || !googleReady}>
-            {!googleReady ? "Loading…" : isSyncing ? "Syncing…" : "Sign in with Google"}
+          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={!googleReady}>
+            {!googleReady ? (authError ? "Sign-in unavailable" : "Loading sign-in…") : "Sign in with Google"}
           </button>
         </div>
       )}
 
+      {authError && <div className="status-banner error-banner" role="alert">{authError}</div>}
+      <div className="sync-status" role="status">{syncStatus} {syncError && <button type="button" className="ghost-button" onClick={() => setSyncRetry(value => value + 1)}>Retry sync</button>}</div>
       <section className="countdown-panel" aria-labelledby="next-release-title">
         <div>
           <span className="eyebrow">Upcoming Anime</span>
@@ -783,7 +843,7 @@ function App() {
               <img className="countdown-art" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
               <div className="countdown-copy">
                 <h2 id="next-release-title">{nextCountdownAnime.title}</h2>
-                <div className="countdown-grid" aria-label="Next episode countdown" aria-live="polite">
+                <div className="countdown-grid" aria-label="Next episode countdown" role="timer" aria-live="off">
                   {countdown ? (
                     countdown.days === "00" && countdown.hours === "00" && countdown.minutes === "00" && countdown.seconds === "00" ? (
                       <div className="countdown-unavailable" style={{ borderColor: "rgba(122, 229, 130, 0.5)" }}>
@@ -813,7 +873,7 @@ function App() {
                   ) : (
                     <div className="countdown-unavailable">
                       <strong>Next Episode TBA</strong>
-                      <span>A concrete next episode timestamp is not available for this title yet.</span>
+                      <span>The release time hasn’t been announced yet.</span>
                     </div>
                   )}
                 </div>
@@ -823,12 +883,12 @@ function App() {
         ) : (
           <div className="empty-panel">
             <h2 id="next-release-title">Build your AniCount list</h2>
-            <p>Select one or more anime below to pin them into your watchlist.</p>
+            <p>Search for a title above or browse below to start your first countdown.</p>
           </div>
         )}
       </section>
 
-      <section className="watchlist-panel" aria-labelledby="watchlist-title">
+      {watchlist.length > 0 && <section className="watchlist-panel" aria-labelledby="watchlist-title">
         <div className="section-heading">
           <div>
             <span className="eyebrow">Your watchlist</span>
@@ -870,7 +930,7 @@ function App() {
 
         {sortedWatchlist.length > 0 ? (
           <div className="watchlist-items">
-            {sortedWatchlist.map((anime) => (
+            {(showAllWatchlist ? sortedWatchlist : sortedWatchlist.slice(0, 3)).map((anime) => (
               <article key={anime.malId} className="watchlist-card">
                 <img src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
                 <div className="watchlist-card-copy">
@@ -895,7 +955,8 @@ function App() {
             <span>Add titles from the upcoming list to start multiple countdowns.</span>
           </div>
         )}
-      </section>
+        {watchlist.length > 3 && <button type="button" className="secondary-button" aria-expanded={showAllWatchlist} onClick={() => setShowAllWatchlist(value => !value)}>{showAllWatchlist ? "Show fewer" : `Show all ${watchlist.length} anime`}</button>}
+      </section>}
 
       {installPrompt ? (
         <div className="status-banner" style={{ borderColor: "rgba(122, 229, 130, 0.4)" }}>
@@ -922,13 +983,14 @@ function App() {
 
       {error ? (
         <div className="status-banner error-banner" role="alert" aria-live="assertive">
-          {error}{" "}
+          {isSearchMode ? "We couldn’t load your search results." : "We couldn’t load anime right now."}{" "}
           <button
             type="button"
             className="ghost-button"
             onClick={() => {
               setError(null);
-              void loadUpcomingAnime(1, "replace");
+              if (failedRequest?.query) void searchAnimeCatalog(failedRequest.query, failedRequest.page, failedRequest.mode);
+              else void loadUpcomingAnime(failedRequest?.page ?? 1, failedRequest?.mode ?? "replace");
             }}
             style={{ marginLeft: "0.75rem" }}
           >
@@ -936,29 +998,6 @@ function App() {
           </button>
         </div>
       ) : null}
-
-      <section className="toolbar" aria-label="Anime controls">
-        <label className="search-field">
-          <span className="eyebrow">Search all anime</span>
-          <input type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
-        </label>
-        {isSearchMode ? (
-          <div className="toolbar-actions">
-            <button
-              type="button"
-              className="secondary-button icon-only-button"
-              onClick={() => {
-                setSearch("");
-                setError(null);
-              }}
-              aria-label="Clear search results"
-              title="Clear search results"
-            >
-              <ClearIcon />
-            </button>
-          </div>
-        ) : null}
-      </section>
 
       <section className="upcoming-panel" aria-labelledby="upcoming-title">
         <div className="section-heading">
@@ -976,6 +1015,8 @@ function App() {
             <p>{isSearchMode ? "Searching all anime..." : "Loading upcoming anime..."}</p>
             <span>{isSearchMode ? "Looking through the full anime catalog." : "Pulling the latest release data."}</span>
           </div>
+        ) : error && visibleAnime.length === 0 ? (
+          <div className="empty-state"><p>Anime couldn’t be loaded.</p><span>Check your connection and use Retry above. Your saved watchlist is still available.</span></div>
         ) : visibleAnime.length > 0 ? (
           <>
             <div className="anime-grid">
@@ -1012,7 +1053,7 @@ function App() {
                         aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                         title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                       >
-                        {isSelected ? "In Watchlist" : "Add to Watchlist"}
+                        {isSelected ? "Remove from watchlist" : "Add to watchlist"}
                       </button>
                     </div>
                   </article>
@@ -1024,20 +1065,20 @@ function App() {
               <div className="load-more-row">
                 <button
                   type="button"
-                  className="primary-button icon-only-button"
+                  className="primary-button"
                   onClick={() => (isSearchMode ? void searchAnimeCatalog(searchQuery, activePage + 1, "append") : void loadUpcomingAnime(activePage + 1, "append"))}
                   disabled={isLoadingMore}
                   aria-label={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
                   title={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
                 >
-                  <ChevronDownIcon />
+                  {isLoadingMore ? "Loading…" : "Load more anime"}
                 </button>
               </div>
             ) : null}
           </>
         ) : (
           <div className="empty-state">
-            <p>No anime matched your search.</p>
+            <p>{isSearchMode ? "No anime matched your search." : "No upcoming anime available yet."}</p>
             <span>Try another title or clear the search to browse upcoming releases.</span>
           </div>
         )}

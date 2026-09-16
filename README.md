@@ -78,8 +78,12 @@ public/
 
 Run `npm test`, `npm run lint`, `npm run build`, and `npm audit` when updating dependencies or security-sensitive code.
 
-Production security headers are defined in `vite.config.ts`. The build emits `dist/_headers` for static deployments on Netlify or Cloudflare Pages. Upload the entire `dist/` directory, including `_headers`. Other hosts must apply the equivalent headers through their own server/CDN configuration; serving the file alone does not enforce them. Functions or worker routes may also need their own header configuration.
+Production security headers are defined in `vercel.json` and reused by `vite.config.ts`. The build emits `dist/_headers` for static deployments on Netlify or Cloudflare Pages. Upload the entire `dist/` directory, including `_headers`. Other hosts must apply the equivalent headers through their own server/CDN configuration; serving the file alone does not enforce them. Functions or worker routes may also need their own header configuration.
 
 `npm run preview` sends the same headers for local production checks. After deployment, inspect the HTML response headers to confirm `Content-Security-Policy` (including `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY` are present. These protections require real response headers, not HTML meta tags. Serve production over HTTPS.
 
 The build also embeds a valid CSP meta fallback for resource restrictions, excluding the unsupported `frame-ancestors` directive. This fallback does not replace the hosting header configuration. Header-file formats follow the [Cloudflare Pages](https://developers.cloudflare.com/pages/configuration/headers/) and [Netlify](https://docs.netlify.com/manage/routing/headers/) documentation.
+
+### Vercel
+
+`vercel.json` is the source of truth for production security headers. Vite uses the same headers for preview and the generated CSP fallback. Deploy the repository with Vercel's Vite preset (build: `npm run build`, output: `dist`). The policy permits AniList, the existing watchlist API, Google Identity Services, and the configured fonts and image hosts. Verify the deployed response headers after redeployment. Header configuration follows the [Vercel documentation](https://vercel.com/docs/project-configuration). Google Identity policy entries follow [Google’s setup guidance](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid#content_security_policy).

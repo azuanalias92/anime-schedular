@@ -53,6 +53,7 @@ export function getStoredToken(): string | null {
 
 export function getStoredUser(): AuthUser | null {
   try {
+    if (!getStoredToken()) return null;
     const raw = localStorage.getItem(USER_KEY);
     return raw ? (JSON.parse(raw) as AuthUser) : null;
   } catch {
@@ -97,10 +98,10 @@ type WatchlistItem = {
 
 export async function fetchRemoteWatchlist(): Promise<WatchlistItem[]> {
   const headers = getAuthHeaders();
-  if (!headers.Authorization) return [];
+  if (!headers.Authorization) throw new Error("Please sign in again");
 
   const res = await fetch(`${API_BASE}/watchlist`, { headers });
-  if (!res.ok) return [];
+  if (!res.ok) throw new Error("Unable to load cloud watchlist");
 
   const data = await res.json();
   return (data.items || []) as WatchlistItem[];
