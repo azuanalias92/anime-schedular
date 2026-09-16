@@ -182,11 +182,8 @@ function formatNextEpisodeLabel(isoDate: string | null): string {
     return "Next episode date not announced";
   }
 
-  return new Intl.DateTimeFormat(getUserLocale(), {
-    weekday: "long",
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(parsedDate);
+  const weekday = new Intl.DateTimeFormat(getUserLocale(), { weekday: "long" }).format(parsedDate);
+  return `${weekday}, ${formatLocalDateTime(isoDate)}`;
 }
 
 function stripSynopsis(synopsis: string | null): string {
