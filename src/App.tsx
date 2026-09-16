@@ -176,7 +176,17 @@ function formatNextEpisodeLabel(isoDate: string | null): string {
     return "Next episode date not announced";
   }
 
-  return formatLocalDateTime(isoDate);
+  const parsedDate = new Date(isoDate);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return "Next episode date not announced";
+  }
+
+  return new Intl.DateTimeFormat(getUserLocale(), {
+    weekday: "long",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsedDate);
 }
 
 function stripSynopsis(synopsis: string | null): string {
