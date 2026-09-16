@@ -11,7 +11,7 @@ let deferredPrompt: BeforeInstallPromptEvent | null = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e as BeforeInstallPromptEvent;
-  (window as any).__pwaInstallPrompt = deferredPrompt;
+  window.__pwaInstallPrompt = deferredPrompt;
 });
 
 createRoot(document.getElementById('root')!).render(

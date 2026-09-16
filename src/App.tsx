@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 declare const __APP_VERSION__: string;
 import "./App.css";
+import { resolveNextEpisodeAt } from "./schedule";
 
 const API_BASE = "https://api.jikan.moe/v4";
 const PAGE_SIZE = 24;
@@ -76,18 +77,6 @@ type CountdownParts = {
   hours: string;
   minutes: string;
   seconds: string;
-};
-
-type EpisodeScheduleSource = Pick<AnimeCardData, "airing" | "releaseAt" | "broadcastDay" | "broadcastTime" | "broadcastTimezone" | "status">;
-
-const WEEKDAY_INDEX: Record<string, number> = {
-  sunday: 0,
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
 };
 
 function TrashIcon() {
@@ -166,117 +155,6 @@ function stripSynopsis(synopsis: string | null): string {
   }
 
   return synopsis.replace(/\s+/g, " ").trim();
-}
-
-function getWeekdayIndex(day: string | null): number | null {
-  if (!day) {
-    return null;
-  }
-
-  const normalizedDay = day.toLowerCase().replace(/s$/, "").trim();
-  return WEEKDAY_INDEX[normalizedDay] ?? null;
-}
-
-function getZonedDateParts(date: Date, timeZone: string) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    weekday: "long",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
-    second: "numeric",
-    hourCycle: "h23",
-  });
-
-  const parts = formatter.formatToParts(date);
-  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
-
-  return {
-    year: Number(values.year),
-    month: Number(values.month),
-    day: Number(values.day),
-    hour: Number(values.hour),
-    minute: Number(values.minute),
-    second: Number(values.second),
-    weekday: getWeekdayIndex(values.weekday) ?? 0,
-  };
-}
-
-function getTimeZoneOffsetMs(date: Date, timeZone: string): number {
-  const zoned = getZonedDateParts(date, timeZone);
-  const zonedAsUtc = Date.UTC(zoned.year, zoned.month - 1, zoned.day, zoned.hour, zoned.minute, zoned.second);
-
-  return zonedAsUtc - date.getTime();
-}
-
-function addDaysToCalendarDate(year: number, month: number, day: number, daysToAdd: number) {
-  const utcDate = new Date(Date.UTC(year, month - 1, day));
-  utcDate.setUTCDate(utcDate.getUTCDate() + daysToAdd);
-
-  return {
-    year: utcDate.getUTCFullYear(),
-    month: utcDate.getUTCMonth() + 1,
-    day: utcDate.getUTCDate(),
-  };
-}
-
-function zonedLocalDateTimeToIso(year: number, month: number, day: number, hour: number, minute: number, timeZone: string): string {
-  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
-  const firstOffset = getTimeZoneOffsetMs(new Date(utcGuess), timeZone);
-  let resolved = utcGuess - firstOffset;
-  const secondOffset = getTimeZoneOffsetMs(new Date(resolved), timeZone);
-
-  if (secondOffset !== firstOffset) {
-    resolved = utcGuess - secondOffset;
-  }
-
-  return new Date(resolved).toISOString();
-}
-
-function resolveNextEpisodeAt(source: EpisodeScheduleSource, nowMs: number): string | null {
-  const status = source.status.toLowerCase();
-  const releaseAtMs = source.releaseAt ? new Date(source.releaseAt).getTime() : null;
-  const isNotYetAired = status.includes("not yet aired");
-  const isFinished = status.includes("finished");
-  const isCurrentlyAiring = source.airing || status.includes("currently airing");
-
-  if (isFinished) {
-    return null;
-  }
-
-  if (isNotYetAired) {
-    return source.releaseAt;
-  }
-
-  const weekdayIndex = getWeekdayIndex(source.broadcastDay);
-  const [hourText, minuteText = "0"] = (source.broadcastTime || "").split(":");
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-
-  if (!isCurrentlyAiring || weekdayIndex === null || !source.broadcastTimezone || Number.isNaN(hour) || Number.isNaN(minute)) {
-    return releaseAtMs && releaseAtMs > nowMs ? source.releaseAt : null;
-  }
-
-  const nowInBroadcastZone = getZonedDateParts(new Date(nowMs), source.broadcastTimezone);
-  let daysUntilNextEpisode = (weekdayIndex - nowInBroadcastZone.weekday + 7) % 7;
-  let candidateDate = addDaysToCalendarDate(nowInBroadcastZone.year, nowInBroadcastZone.month, nowInBroadcastZone.day, daysUntilNextEpisode);
-  let candidateIso = zonedLocalDateTimeToIso(candidateDate.year, candidateDate.month, candidateDate.day, hour, minute, source.broadcastTimezone);
-  let candidateMs = new Date(candidateIso).getTime();
-
-  if (candidateMs <= nowMs) {
-    daysUntilNextEpisode += 7;
-    candidateDate = addDaysToCalendarDate(nowInBroadcastZone.year, nowInBroadcastZone.month, nowInBroadcastZone.day, daysUntilNextEpisode);
-    candidateIso = zonedLocalDateTimeToIso(candidateDate.year, candidateDate.month, candidateDate.day, hour, minute, source.broadcastTimezone);
-    candidateMs = new Date(candidateIso).getTime();
-  }
-
-  if (releaseAtMs && releaseAtMs > nowMs && candidateMs < releaseAtMs) {
-    return source.releaseAt;
-  }
-
-  return candidateIso;
 }
 
 function toSeasonLabel(season: string | null, year: number | null): string {
@@ -462,7 +340,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => window.__pwaInstallPrompt ?? null);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
 
@@ -492,8 +370,9 @@ function App() {
   }, [watchlist]);
 
   useEffect(() => {
-    const prompt = (window as any).__pwaInstallPrompt;
-    if (prompt) setInstallPrompt(prompt);
+    const capturePrompt = (event: Event) => setInstallPrompt(event as BeforeInstallPromptEvent);
+    window.addEventListener("beforeinstallprompt", capturePrompt);
+    return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
   }, []);
 
   const syncWatchlist = useCallback((incomingList: AnimeCardData[]) => {

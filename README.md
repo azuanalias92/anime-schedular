@@ -22,7 +22,7 @@ AniCount is a compact PWA for tracking anime release countdowns. Users can searc
 
 ### Requirements
 
-- Node.js 20+
+- Node.js 22.18+ (supports the TypeScript regression tests)
 - npm
 
 ### Install
@@ -73,3 +73,13 @@ public/
 - Release times are shown in the user's local timezone.
 - Watchlist selections are stored in `localStorage`.
 - The app is configured as a standalone PWA with automatic service worker updates.
+
+## Security and deployment
+
+Run `npm test`, `npm run lint`, `npm run build`, and `npm audit` when updating dependencies or security-sensitive code.
+
+Production security headers are defined in `vite.config.ts`. The build emits `dist/_headers` for static deployments on Netlify or Cloudflare Pages. Upload the entire `dist/` directory, including `_headers`. Other hosts must apply the equivalent headers through their own server/CDN configuration; serving the file alone does not enforce them. Functions or worker routes may also need their own header configuration.
+
+`npm run preview` sends the same headers for local production checks. After deployment, inspect the HTML response headers to confirm `Content-Security-Policy` (including `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, and `X-Frame-Options: DENY` are present. These protections require real response headers, not HTML meta tags. Serve production over HTTPS.
+
+The build also embeds a valid CSP meta fallback for resource restrictions, excluding the unsupported `frame-ancestors` directive. This fallback does not replace the hosting header configuration. Header-file formats follow the [Cloudflare Pages](https://developers.cloudflare.com/pages/configuration/headers/) and [Netlify](https://docs.netlify.com/manage/routing/headers/) documentation.
