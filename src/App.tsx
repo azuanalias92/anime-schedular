@@ -2,53 +2,70 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 declare const __APP_VERSION__: string;
 import "./App.css";
-import { resolveNextEpisodeAt } from "./schedule";
+import {
+  getStoredUser,
+  loginWithGoogle,
+  clearAuth,
+  fetchRemoteWatchlist,
+  pushWatchlist,
+  type AuthUser,
+} from "./auth";
 
-const API_BASE = "https://api.jikan.moe/v4";
+const API_BASE = "https://graphql.anilist.co";
 const PAGE_SIZE = 24;
 const WATCHLIST_STORAGE_KEY = "anime-countdown-watchlist";
 
+async function fetchWithRetry(query: string, variables: Record<string, unknown> = {}, retries = 2): Promise<Response> {
+  for (let i = 0; i <= retries; i++) {
+    const res = await fetch(API_BASE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (res.ok || res.status === 404) return res;
+    // Only retry on 5xx gateway/server errors
+    if (res.status < 500 || i === retries) return res;
+    await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+  }
+  return fetch(API_BASE, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, variables }) });
+}
+
+type AniListDate = { year: number | null; month: number | null; day: number | null };
+
 type AnimeApiItem = {
-  mal_id: number;
-  title: string;
-  title_english: string | null;
-  title_japanese?: string | null;
-  images: {
-    jpg?: {
-      image_url?: string | null;
-      large_image_url?: string | null;
-    };
-    webp?: {
-      image_url?: string | null;
-      large_image_url?: string | null;
-    };
+  id: number;
+  title: {
+    romaji: string | null;
+    english: string | null;
+    native: string | null;
   };
-  aired?: {
-    from: string | null;
-    string?: string | null;
+  coverImage: {
+    large: string;
   };
-  broadcast?: {
-    day: string | null;
-    time: string | null;
-    timezone: string | null;
-    string?: string | null;
-  };
+  startDate: AniListDate;
   season: string | null;
-  year: number | null;
+  seasonYear: number | null;
   status: string;
-  synopsis: string | null;
-  score: number | null;
+  description: string | null;
+  averageScore: number | null;
   episodes: number | null;
-  members: number | null;
-  genres?: Array<{ mal_id: number; name: string }>;
-  studios?: Array<{ mal_id: number; name: string }>;
+  popularity: number | null;
+  genres: string[];
+  studios: { nodes: Array<{ name: string }> };
+  nextAiringEpisode: {
+    airingAt: number;
+    timeUntilAiring: number;
+    episode: number;
+  } | null;
 };
 
 type AnimeListApiResponse = {
-  pagination: {
-    has_next_page: boolean;
+  data: {
+    Page: {
+      pageInfo: { hasNextPage: boolean };
+      media: AnimeApiItem[];
+    };
   };
-  data: AnimeApiItem[];
 };
 
 type AnimeCardData = {
@@ -70,6 +87,7 @@ type AnimeCardData = {
   members: number | null;
   studio: string;
   genres: string[];
+  nextAiringAt: number | null;
 };
 
 type CountdownParts = {
@@ -78,6 +96,8 @@ type CountdownParts = {
   minutes: string;
   seconds: string;
 };
+
+type EpisodeScheduleSource = Pick<AnimeCardData, "airing" | "releaseAt" | "status" | "nextAiringAt">;
 
 function TrashIcon() {
   return (
@@ -141,14 +161,6 @@ function formatNextEpisodeLabel(isoDate: string | null): string {
   return formatLocalDateTime(isoDate);
 }
 
-function fallbackReleaseLabel(releaseAt: string | null): string {
-  if (!releaseAt) {
-    return "Date to be announced";
-  }
-
-  return formatLocalDateTime(releaseAt);
-}
-
 function stripSynopsis(synopsis: string | null): string {
   if (!synopsis) {
     return "No synopsis available yet.";
@@ -157,53 +169,82 @@ function stripSynopsis(synopsis: string | null): string {
   return synopsis.replace(/\s+/g, " ").trim();
 }
 
+// ─── Next-episode resolution (AniList provides exact timestamps) ─────────────
+
+function resolveNextEpisodeAt(source: EpisodeScheduleSource, nowMs: number): string | null {
+  const statusLower = source.status.toLowerCase();
+
+  // Finished / cancelled / hiatus — no next episode
+  if (statusLower.includes("finished") || statusLower.includes("cancelled") || statusLower.includes("hiatus")) {
+    return null;
+  }
+
+  // If we have an exact next airing timestamp, use it
+  if (source.nextAiringAt && source.nextAiringAt > nowMs) {
+    return new Date(source.nextAiringAt).toISOString();
+  }
+
+  // Fallback: use releaseAt for not-yet-aired
+  if (source.releaseAt) {
+    const releaseMs = new Date(source.releaseAt).getTime();
+    if (releaseMs > nowMs) return source.releaseAt;
+  }
+
+  return null;
+}
+
 function toSeasonLabel(season: string | null, year: number | null): string {
   if (!season && !year) {
     return "Upcoming anime";
   }
 
-  const seasonText = season ? `${season.slice(0, 1).toUpperCase()}${season.slice(1)}` : "Upcoming";
+  const seasonText = season ? `${season.slice(0, 1).toUpperCase()}${season.slice(1).toLowerCase()}` : "Upcoming";
   return year ? `${seasonText} ${year}` : seasonText;
 }
 
-function toBroadcastLabel(anime: AnimeApiItem): string {
-  const broadcast = anime.broadcast?.string?.trim();
-
-  if (broadcast) {
-    return broadcast;
+function anilistStatusLabel(status: string): string {
+  switch (status) {
+    case "NOT_YET_RELEASED": return "Not Yet Aired";
+    case "RELEASING": return "Currently Airing";
+    case "FINISHED": return "Finished Airing";
+    case "CANCELLED": return "Cancelled";
+    case "HIATUS": return "On Hiatus";
+    default: return status;
   }
+}
 
-  const day = anime.broadcast?.day;
-  const time = anime.broadcast?.time;
-  const timezone = anime.broadcast?.timezone;
-
-  if (!day && !time && !timezone) {
-    return "Broadcast time not announced";
-  }
-
-  return [day, time, timezone].filter(Boolean).join(" • ");
+function startDateToIso(date: AniListDate): string | null {
+  if (!date.year || !date.month || !date.day) return null;
+  // Use UTC noon to avoid timezone edge cases
+  return new Date(Date.UTC(date.year, date.month - 1, date.day, 12, 0, 0)).toISOString();
 }
 
 function normalizeAnime(anime: AnimeApiItem): AnimeCardData {
+  const releaseAt = startDateToIso(anime.startDate);
   return {
-    malId: anime.mal_id,
-    title: anime.title_english || anime.title,
-    imageUrl: anime.images.webp?.large_image_url || anime.images.jpg?.large_image_url || anime.images.webp?.image_url || anime.images.jpg?.image_url || "/favicon.svg",
-    airing: anime.status === "Currently Airing",
-    releaseAt: anime.aired?.from ?? null,
-    releaseLabel: anime.aired?.string?.trim() || fallbackReleaseLabel(anime.aired?.from ?? null),
-    broadcastLabel: toBroadcastLabel(anime),
-    broadcastDay: anime.broadcast?.day ?? null,
-    broadcastTime: anime.broadcast?.time ?? null,
-    broadcastTimezone: anime.broadcast?.timezone ?? null,
-    seasonLabel: toSeasonLabel(anime.season, anime.year),
-    synopsis: stripSynopsis(anime.synopsis),
-    status: anime.status,
-    score: anime.score,
+    malId: anime.id,
+    title: anime.title.english || anime.title.romaji || anime.title.native || "Unknown",
+    imageUrl: anime.coverImage?.large || "/favicon.svg",
+    airing: anime.status === "RELEASING",
+    releaseAt,
+    releaseLabel: anime.startDate.year
+      ? `${anime.startDate.year}-${String(anime.startDate.month ?? 1).padStart(2, "0")}-${String(anime.startDate.day ?? 1).padStart(2, "0")}`
+      : "Date to be announced",
+    broadcastLabel: anime.nextAiringEpisode
+      ? `Ep ${anime.nextAiringEpisode.episode} — ${formatLocalDateTime(new Date(anime.nextAiringEpisode.airingAt * 1000).toISOString())}`
+      : "Broadcast time not announced",
+    broadcastDay: null,
+    broadcastTime: null,
+    broadcastTimezone: null,
+    seasonLabel: toSeasonLabel(anime.season, anime.seasonYear),
+    synopsis: stripSynopsis(anime.description),
+    status: anilistStatusLabel(anime.status),
+    score: anime.averageScore,
     episodes: anime.episodes,
-    members: anime.members,
-    studio: anime.studios?.[0]?.name || "Studio TBA",
-    genres: anime.genres?.map((genre) => genre.name) ?? [],
+    members: anime.popularity,
+    studio: anime.studios?.nodes?.[0]?.name || "Studio TBA",
+    genres: anime.genres ?? [],
+    nextAiringAt: anime.nextAiringEpisode ? anime.nextAiringEpisode.airingAt * 1000 : null,
   };
 }
 
@@ -303,6 +344,7 @@ function readStoredWatchlist(): AnimeCardData[] {
           members: typeof item.members === "number" ? item.members : null,
           studio: typeof item.studio === "string" ? item.studio : "Studio TBA",
           genres: Array.isArray(item.genres) ? item.genres.filter((g: unknown) => typeof g === "string") : [],
+          nextAiringAt: typeof item.nextAiringAt === "number" ? item.nextAiringAt : null,
         };
       })
       .sort(byNearestRelease);
@@ -341,6 +383,8 @@ function App() {
   const [now, setNow] = useState(() => Date.now());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => window.__pwaInstallPrompt ?? null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(getStoredUser);
+  const [isSyncing, setIsSyncing] = useState(false);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
 
@@ -374,6 +418,96 @@ function App() {
     window.addEventListener("beforeinstallprompt", capturePrompt);
     return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
   }, []);
+
+  // ─── Google Sign-In ────────────────────────────────────────────────────────
+  const [googleReady, setGoogleReady] = useState(false);
+
+  const handleGoogleLogin = useCallback(async () => {
+    const google = (window as any).google;
+    if (!google?.accounts?.id) {
+      alert("Google Sign-In is not available right now.");
+      return;
+    }
+
+    google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        return;
+      }
+    });
+  }, []);
+
+  // Initialize Google Identity Services — retry until script is loaded
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
+    const tryInit = () => {
+      const google = (window as any).google;
+      if (!google?.accounts?.id) {
+        if (attempts < 50 && !cancelled) {
+          attempts++;
+          setTimeout(tryInit, 200);
+        }
+        return;
+      }
+
+      google.accounts.id.initialize({
+        client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
+        callback: async (response: { credential: string }) => {
+          try {
+            const { user } = await loginWithGoogle(response.credential);
+            setAuthUser(user);
+
+            setIsSyncing(true);
+            const remoteItems = await fetchRemoteWatchlist();
+            if (remoteItems.length > 0) {
+              setWatchlist((current) => {
+                const merged = [...current];
+                for (const remoteItem of remoteItems) {
+                  if (!merged.some((local) => local.malId === remoteItem.malId)) {
+                    merged.push(remoteItem as any);
+                  }
+                }
+                return dedupeAnimeCards(merged).sort(byNearestRelease);
+              });
+            }
+            setIsSyncing(false);
+          } catch (err) {
+            console.error("Google login failed:", err);
+            setIsSyncing(false);
+          }
+        },
+        auto_select: false,
+      });
+
+      if (!cancelled) setGoogleReady(true);
+    };
+
+    tryInit();
+
+    return () => {
+      cancelled = true;
+      const google = (window as any).google;
+      if (google?.accounts?.id) google.accounts.id.cancel();
+    };
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    clearAuth();
+    setAuthUser(null);
+  }, []);
+
+  // ─── Sync watchlist to cloud on changes (debounced) ────────────────────────
+
+  useEffect(() => {
+    if (!authUser || watchlist.length === 0) return;
+
+    const timer = window.setTimeout(() => {
+      void pushWatchlist(watchlist);
+    }, 2000);
+
+    return () => window.clearTimeout(timer);
+  }, [authUser, watchlist]);
 
   const syncWatchlist = useCallback((incomingList: AnimeCardData[]) => {
     setWatchlist((currentWatchlist) => {
@@ -411,6 +545,25 @@ function App() {
     });
   }, []);
 
+  // ─── GraphQL query fragments ──────────────────────────────────────────────
+
+  const MEDIA_FIELDS = `
+    id
+    title { romaji english native }
+    coverImage { large }
+    startDate { year month day }
+    season
+    seasonYear
+    status
+    description
+    averageScore
+    episodes
+    popularity
+    genres
+    studios { nodes { name } }
+    nextAiringEpisode { airingAt timeUntilAiring episode }
+  `;
+
   const loadUpcomingAnime = useCallback(
     async (nextPage: number, mode: "replace" | "append") => {
       if (mode === "replace") {
@@ -421,14 +574,22 @@ function App() {
       }
 
       try {
-        const response = await fetch(`${API_BASE}/seasons/upcoming?page=${nextPage}&limit=${PAGE_SIZE}`);
+        const query = `query($page: Int, $perPage: Int) {
+          Page(page: $page, perPage: $perPage) {
+            pageInfo { hasNextPage }
+            media(type: ANIME, status_in: [NOT_YET_RELEASED, RELEASING], sort: POPULARITY_DESC) {
+              ${MEDIA_FIELDS}
+            }
+          }
+        }`;
+        const response = await fetchWithRetry(query, { page: nextPage, perPage: PAGE_SIZE });
 
         if (!response.ok) {
           throw new Error(`Anime data request failed with status ${response.status}`);
         }
 
         const payload = (await response.json()) as AnimeListApiResponse;
-        const normalized = dedupeAnimeCards(payload.data.map(normalizeAnime).filter((anime) => anime.status !== "Finished Airing")).sort(
+        const normalized = dedupeAnimeCards(payload.data.Page.media.map(normalizeAnime).filter((anime) => anime.status !== "Finished Airing")).sort(
           byNearestRelease,
         );
 
@@ -436,7 +597,7 @@ function App() {
         syncWatchlist(normalized);
 
         setUpcomingPage(nextPage);
-        setUpcomingHasNextPage(payload.pagination.has_next_page);
+        setUpcomingHasNextPage(payload.data.Page.pageInfo.hasNextPage);
       } catch (caughtError) {
         const message = caughtError instanceof Error ? caughtError.message : "Unable to load upcoming anime right now.";
         setError(message);
@@ -449,7 +610,7 @@ function App() {
   );
 
   const searchAnimeCatalog = useCallback(
-    async (query: string, nextPage: number, mode: "replace" | "append", signal?: AbortSignal) => {
+    async (query: string, nextPage: number, mode: "replace" | "append") => {
       if (!query) {
         setSearchResults([]);
         setSearchPage(1);
@@ -465,26 +626,29 @@ function App() {
       }
 
       try {
-        const requestUrl = `${API_BASE}/anime?q=${encodeURIComponent(query)}&page=${nextPage}&limit=${PAGE_SIZE}`;
-        const response = await fetch(requestUrl, { signal });
+        const gql = `query($search: String, $page: Int, $perPage: Int) {
+          Page(page: $page, perPage: $perPage) {
+            pageInfo { hasNextPage }
+            media(search: $search, type: ANIME, sort: SEARCH_MATCH) {
+              ${MEDIA_FIELDS}
+            }
+          }
+        }`;
+        const response = await fetchWithRetry(gql, { search: query, page: nextPage, perPage: PAGE_SIZE });
 
         if (!response.ok) {
           throw new Error(`Anime search request failed with status ${response.status}`);
         }
 
         const payload = (await response.json()) as AnimeListApiResponse;
-        const normalized = dedupeAnimeCards(payload.data.map(normalizeAnime)).sort(byRecentRelease);
+        const normalized = dedupeAnimeCards(payload.data.Page.media.map(normalizeAnime)).sort(byRecentRelease);
 
         setSearchResults((currentList) => (mode === "replace" ? normalized : mergeAnimeCards(currentList, normalized)));
         syncWatchlist(normalized);
 
         setSearchPage(nextPage);
-        setSearchHasNextPage(payload.pagination.has_next_page);
+        setSearchHasNextPage(payload.data.Page.pageInfo.hasNextPage);
       } catch (caughtError) {
-        if (caughtError instanceof DOMException && caughtError.name === "AbortError") {
-          return;
-        }
-
         const message = caughtError instanceof Error ? caughtError.message : "Unable to search anime right now.";
         setError(message);
       } finally {
@@ -508,13 +672,11 @@ function App() {
       return;
     }
 
-    const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
-      void searchAnimeCatalog(searchQuery, 1, "replace", controller.signal);
+      void searchAnimeCatalog(searchQuery, 1, "replace");
     }, 300);
 
     return () => {
-      controller.abort();
       window.clearTimeout(timeoutId);
     };
   }, [searchAnimeCatalog, searchQuery]);
@@ -589,6 +751,28 @@ function App() {
 
   return (
     <main className="app-shell">
+      {/* ─── Auth Banner ─── */}
+      {authUser ? (
+        <div className="auth-banner">
+          <span className="auth-user-info">
+            {authUser.avatarUrl ? (
+              <img src={authUser.avatarUrl} alt="" className="auth-avatar" />
+            ) : null}
+            <span className="auth-name">{authUser.name}</span>
+          </span>
+          <button type="button" className="ghost-button" onClick={handleLogout}>
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <div className="auth-banner">
+          <span>Sign in to sync your watchlist across devices</span>
+          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={isSyncing || !googleReady}>
+            {!googleReady ? "Loading…" : isSyncing ? "Syncing…" : "Sign in with Google"}
+          </button>
+        </div>
+      )}
+
       <section className="countdown-panel" aria-labelledby="next-release-title">
         <div>
           <span className="eyebrow">Upcoming Anime</span>

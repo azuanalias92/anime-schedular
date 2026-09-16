@@ -1,0 +1,14 @@
+name = "anicount-api"
+main = "src/index.ts"
+compatibility_date = "2025-07-06"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "anicount-db"
+database_id = "6dcac222-521d-4a6a-965f-35e3fd94a87c"
+
+[vars]
+GOOGLE_CLIENT_ID = "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com"
+
+[observability]
+enabled = true
