@@ -427,7 +427,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => window.__pwaInstallPrompt ?? null);
+  // const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => window.__pwaInstallPrompt ?? null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(getStoredUser);
   const [syncStatus, setSyncStatus] = useState("Saved on this device");
   const [syncError, setSyncError] = useState(false);
@@ -465,11 +465,11 @@ function App() {
     window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
   }, [watchlist]);
 
-  useEffect(() => {
-    const capturePrompt = (event: Event) => setInstallPrompt(event as BeforeInstallPromptEvent);
-    window.addEventListener("beforeinstallprompt", capturePrompt);
-    return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
-  }, []);
+  // useEffect(() => {
+  //   const capturePrompt = (event: Event) => setInstallPrompt(event as BeforeInstallPromptEvent);
+  //   window.addEventListener("beforeinstallprompt", capturePrompt);
+  //   return () => window.removeEventListener("beforeinstallprompt", capturePrompt);
+  // }, []);
 
   // ─── Google Sign-In ────────────────────────────────────────────────────────
   const [googleReady, setGoogleReady] = useState(false);
