@@ -807,14 +807,14 @@ function App() {
     });
   }
 
-  async function handleInstall() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const result = await installPrompt.userChoice;
-    if (result.outcome === "accepted") {
-      setInstallPrompt(null);
-    }
-  }
+  // async function handleInstall() {
+  //   if (!installPrompt) return;
+  //   await installPrompt.prompt();
+  //   const result = await installPrompt.userChoice;
+  //   if (result.outcome === "accepted") {
+  //     setInstallPrompt(null);
+  //   }
+  // }
 
   function clearWatchlist() {
     setWatchlist([]);
