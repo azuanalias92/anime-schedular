@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('/fonts/orbitron-latin-variable.woff2') format('woff2');
+}
+
 /* Inclusive breakpoints preserve the existing tablet and mobile layouts. */
 @custom-variant tablet (@media (max-width: 840px));
 @custom-variant mobile (@media (max-width: 720px));
@@ -56,6 +64,14 @@
 }
 
 @layer base {
+  /* Keep all text, native controls, and generated content in Orbitron. */
+  *,
+  ::before,
+  ::after,
+  ::file-selector-button {
+    @apply font-sans;
+  }
+
   html {
     @apply scheme-dark scroll-smooth bg-page font-sans font-normal leading-normal text-primary antialiased [font-synthesis:none] [text-rendering:optimizeLegibility];
   }
