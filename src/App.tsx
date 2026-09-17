@@ -203,7 +203,16 @@ function stripSynopsis(synopsis: string | null): string {
     return "No synopsis available yet.";
   }
 
-  return synopsis.replace(/\s+/g, " ").trim();
+  // Parse API markup in an inert template, then render only its plain text.
+  const template = document.createElement("template");
+  template.innerHTML = synopsis;
+  template.content.querySelectorAll("script, style, iframe, object").forEach((element) => element.remove());
+  template.content.querySelectorAll("br, hr, p, div, li").forEach((element) => {
+    element.before(document.createTextNode(" "));
+    element.after(document.createTextNode(" "));
+  });
+
+  return template.content.textContent?.replace(/\s+/g, " ").trim() || "No synopsis available yet.";
 }
 
 // ─── Next-episode resolution (AniList provides exact timestamps) ─────────────
@@ -373,7 +382,7 @@ function readStoredWatchlist(): AnimeCardData[] {
           broadcastTime: typeof item.broadcastTime === "string" ? item.broadcastTime : null,
           broadcastTimezone: typeof item.broadcastTimezone === "string" ? item.broadcastTimezone : null,
           seasonLabel: typeof item.seasonLabel === "string" ? item.seasonLabel : "Upcoming anime",
-          synopsis: typeof item.synopsis === "string" ? item.synopsis : "No synopsis available yet.",
+          synopsis: stripSynopsis(typeof item.synopsis === "string" ? item.synopsis : null),
           status: typeof item.status === "string" ? item.status : "Unknown",
           score: typeof item.score === "number" ? item.score : null,
           episodes: typeof item.episodes === "number" ? item.episodes : null,
@@ -855,7 +864,7 @@ function App() {
 
       {authUser && (
         <div className="text-muted" role="status">
-          {syncStatus}{" "}
+          {syncStatus == "Saved across your devices" ? "" : syncStatus}
           {syncError && (
             <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={() => setSyncRetry((value) => value + 1)}>
               Retry sync
@@ -1005,7 +1014,7 @@ function App() {
         )}
       </section>
 
-      {installPrompt ? (
+      {/* {installPrompt ? (
         <div className={`${statusBanner} border-sky/40!`}>
           Install AniCount for quick access
           <button type="button" className={`${ghostButton} ml-3 px-[1.1rem] py-[0.85rem]`} onClick={() => void handleInstall()}>
@@ -1015,7 +1024,7 @@ function App() {
             <ClearIcon />
           </button>
         </div>
-      ) : null}
+      ) : null} */}
       {isOffline ? (
         <div className={statusBanner} role="status">
           You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.
