@@ -1,94 +1,71 @@
-:root {
-  color-scheme: dark;
+@import "tailwindcss";
+
+/* Inclusive breakpoints preserve the existing tablet and mobile layouts. */
+@custom-variant tablet (@media (max-width: 840px));
+@custom-variant mobile (@media (max-width: 720px));
+@custom-variant compact (@media (max-width: 480px));
+
+@theme {
+  --font-sans: 'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --color-foam: #DBFADB;
   --color-sky: #7AE582;
-  --color-deep: #62BA69;
   --color-ice: #4D9452;
-  --color-blue: #376D3B;
-  --text-primary: var(--color-foam);
-  --text-secondary: var(--color-ice);
-  --text-muted: #79dcc7;
-  --panel-bg: rgba(0, 0, 0, 0.82);
-  --panel-strong-bg: rgba(8, 8, 8, 0.94);
-  --panel-alt-bg: rgba(20, 20, 20, 0.88);
-  --panel-highlight: rgba(32, 32, 32, 0.92);
-  --chip-bg: rgba(159, 255, 203, 0.14);
-  --chip-border: rgba(122, 229, 130, 0.28);
-  --surface-border: rgba(0, 165, 207, 0.28);
-  --button-ghost-bg: rgba(37, 161, 142, 0.16);
-  --button-secondary-bg: rgba(122, 229, 130, 0.16);
-  --button-secondary-border: rgba(122, 229, 130, 0.3);
-  font-family:
-    'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-    'Segoe UI', sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-  color: var(--text-primary);
-  background:
+  --color-primary: #DBFADB;
+  --color-secondary: #4D9452;
+  --color-muted: #79dcc7;
+  --color-panel: rgba(0, 0, 0, 0.82);
+  --color-panel-strong: rgba(8, 8, 8, 0.94);
+  --color-chip: rgba(159, 255, 203, 0.14);
+  --color-chip-border: rgba(122, 229, 130, 0.28);
+  --color-surface: rgba(0, 165, 207, 0.28);
+  --color-button-ghost: rgba(37, 161, 142, 0.16);
+  --color-button-secondary: rgba(122, 229, 130, 0.16);
+  --color-button-secondary-border: rgba(122, 229, 130, 0.3);
+  --aspect-poster: 424 / 600;
+  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.42);
+  --shadow-primary-button: 0 12px 24px rgba(0, 165, 207, 0.2);
+  --shadow-card-focus: 0 24px 72px rgba(0, 165, 207, 0.18);
+  --background-image-page:
     radial-gradient(circle at top left, rgba(159, 255, 203, 0.1), transparent 22%),
     radial-gradient(circle at top right, rgba(122, 229, 130, 0.08), transparent 20%),
     radial-gradient(circle at bottom right, rgba(0, 165, 207, 0.1), transparent 30%),
     radial-gradient(circle at bottom left, rgba(37, 161, 142, 0.08), transparent 26%),
     linear-gradient(180deg, #000000 0%, #050505 52%, #000000 100%);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --background-image-accent-panel:
+    linear-gradient(145deg, rgba(37, 161, 142, 0.14), rgba(0, 0, 0, 0.92) 42%),
+    linear-gradient(180deg, rgba(122, 229, 130, 0.08), rgba(6, 6, 6, 0.96));
+  --background-image-upcoming-panel:
+    linear-gradient(145deg, rgba(159, 255, 203, 0.08), rgba(0, 0, 0, 0.92) 42%),
+    linear-gradient(180deg, rgba(0, 165, 207, 0.1), rgba(6, 6, 6, 0.96));
+  --background-image-toolbar:
+    linear-gradient(145deg, rgba(159, 255, 203, 0.08), rgba(0, 0, 0, 0.92) 45%),
+    linear-gradient(180deg, rgba(37, 161, 142, 0.1), rgba(6, 6, 6, 0.96));
+  --background-image-status:
+    linear-gradient(145deg, rgba(0, 165, 207, 0.12), rgba(0, 0, 0, 0.94) 55%),
+    linear-gradient(180deg, rgba(159, 255, 203, 0.08), rgba(8, 8, 8, 0.96));
+  --background-image-countdown:
+    linear-gradient(180deg, rgba(122, 229, 130, 0.1), rgba(0, 0, 0, 0.94));
+  --background-image-search:
+    linear-gradient(180deg, rgba(37, 161, 142, 0.08), rgba(0, 0, 0, 0.96));
+  --background-image-primary-button: linear-gradient(135deg, var(--color-sky), var(--color-ice));
+  --background-image-watchlist-card:
+    linear-gradient(145deg, rgba(37, 161, 142, 0.1), rgba(0, 0, 0, 0.96) 52%);
+  --background-image-anime-card:
+    linear-gradient(180deg, rgba(159, 255, 203, 0.05), rgba(0, 0, 0, 0.94) 20%);
+  --background-image-auth: linear-gradient(135deg, rgba(37, 161, 142, 0.1), rgba(0, 0, 0, 0.8));
 }
 
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  html {
+    @apply scheme-dark scroll-smooth bg-page font-sans font-normal leading-normal text-primary antialiased [font-synthesis:none] [text-rendering:optimizeLegibility];
+  }
 
-html {
-  scroll-behavior: smooth;
-}
+  body {
+    @apply m-0 min-h-screen min-w-[320px];
+  }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-body,
-button,
-input {
-  font: inherit;
-}
-
-button,
-input {
-  outline: 2px solid transparent;
-}
-
-button:focus-visible,
-input:focus-visible {
-  outline-color: rgba(159, 255, 203, 0.65);
-  outline-offset: 2px;
-}
-
-img {
-  display: block;
-  max-width: 100%;
-}
-
-a {
-  color: inherit;
-}
-
-p {
-  margin: 0;
-}
-
-#root {
-  width: min(1320px, calc(100% - 2rem));
-  margin: 0 auto;
-  padding: 0.75rem 0 1.5rem;
-}
-
-@media (max-width: 720px) {
-  #root {
-    width: min(100%, calc(100% - 1rem));
-    padding-top: 0.35rem;
+  button,
+  input {
+    @apply outline-2 outline-solid outline-transparent focus-visible:outline-[rgba(159,255,203,0.65)] focus-visible:outline-offset-2;
   }
 }

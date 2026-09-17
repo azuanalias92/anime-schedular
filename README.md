@@ -16,6 +16,7 @@ AniCount is a compact PWA for tracking anime release countdowns. Users can searc
 - React
 - TypeScript
 - Vite
+- Tailwind CSS v4
 - `vite-plugin-pwa`
 
 ## Getting Started
@@ -59,9 +60,8 @@ npm run preview
 
 ```text
 src/
-  App.tsx         Main app logic and UI
-  App.css         App-specific styling
-  index.css       Global theme and layout tokens
+  App.tsx         Main app logic and Tailwind-styled UI
+  index.css       Tailwind import, theme tokens, and base styles
 public/
   favicon.svg
   pwa-192.svg

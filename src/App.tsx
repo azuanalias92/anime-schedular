@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 declare const __APP_VERSION__: string;
-import "./App.css";
 import {
   getStoredUser,
   loginWithGoogle,
@@ -10,6 +9,22 @@ import {
   pushWatchlist,
   type AuthUser,
 } from "./auth";
+
+const buttonBase = "inline-flex items-center justify-center rounded-[999px] font-bold cursor-pointer transition-[transform,opacity,background] duration-180 ease-[ease] hover:[transform:translateY(-1px)] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none active:[transform:translateY(0)_scale(0.97)] active:brightness-90";
+const panelBase = "rounded-[28px] border shadow-panel backdrop-blur-[24px] compact:rounded-[20px]";
+const emptyBase = "grid gap-[0.35rem] rounded-[22px] border border-surface bg-panel-strong p-4 compact:p-[0.85rem]";
+const eyebrow = "text-[0.72rem] leading-[1.1] font-bold tracking-[0.12em] uppercase text-sky [text-shadow:0_0_18px_rgba(0,165,207,0.18)] compact:text-[0.66rem] compact:tracking-[0.1em]";
+const sectionHeading = "flex items-center justify-between [&>div]:grid [&>div]:content-start [&>div]:gap-[0.2rem] mobile:flex-col mobile:items-start mobile:gap-[0.3rem]";
+const countdownCell = "rounded-[22px] border border-sky/30 bg-countdown bg-panel-strong p-[0.8rem] text-center [&>strong]:block [&>strong]:text-foam [&>strong]:text-[clamp(1.8rem,4vw,3rem)] [&>strong]:leading-none [&>strong]:[text-shadow:0_0_18px_rgba(159,255,203,0.15)] [&>span]:text-secondary [&>span]:leading-[1.35] mobile:px-[0.3rem] mobile:py-2 mobile:[&>strong]:text-[clamp(1.2rem,5vw,1.8rem)] mobile:[&>span]:text-[0.62rem] compact:px-[0.15rem] compact:py-[0.4rem] compact:[&>strong]:text-[clamp(1rem,5vw,1.4rem)] compact:[&>span]:text-[0.55rem]";
+const badgeBase = "inline-flex items-center rounded-[999px] border px-[0.58rem] py-[0.3rem] text-[0.72rem] leading-[1.2] tracking-[0.12em] uppercase mobile:px-2 mobile:py-[0.28rem] mobile:leading-[1.25] compact:text-[0.66rem] compact:tracking-[0.1em]";
+const primaryButton = `${buttonBase} border-0 bg-primary-button text-foam shadow-primary-button`;
+const secondaryButton = `${buttonBase} border border-button-secondary-border bg-button-secondary text-foam`;
+const ghostButton = `${buttonBase} border border-[rgba(37,161,142,0.24)] bg-button-ghost text-ice hover:bg-sky/18 hover:text-foam hover:border-sky/30`;
+const accentPanel = `${panelBase} flex flex-col gap-[0.8rem] border-[rgba(37,161,142,0.4)] bg-accent-panel p-[1.1rem] mobile:p-[0.9rem]`;
+const emptyState = `${emptyBase} [&>p]:leading-[1.15] [&>span]:text-secondary [&>span]:leading-normal`;
+const countdownUnavailable = `${emptyBase} col-span-full [&>strong]:leading-[1.15] [&>span]:text-secondary [&>span]:leading-[1.35]`;
+const statusBanner = `${panelBase} border-surface bg-status px-4 py-[0.8rem] text-primary compact:px-[0.9rem] compact:py-3 compact:text-[0.92rem]`;
+const errorBanner = `${panelBase} border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.4)] px-4 py-[0.8rem] text-primary compact:px-[0.9rem] compact:py-3 compact:text-[0.92rem]`;
 
 const API_BASE = "https://graphql.anilist.co";
 const PAGE_SIZE = 24;
@@ -119,7 +134,7 @@ type EpisodeScheduleSource = Pick<AnimeCardData, "airing" | "releaseAt" | "statu
 
 function TrashIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[1.1rem] fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
       <path d="M3 6h18" />
       <path d="M8 6V4h8v2" />
       <path d="M19 6l-1 14H6L5 6" />
@@ -131,7 +146,7 @@ function TrashIcon() {
 
 function ClearIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[1.1rem] fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
       <path d="M6 6l12 12" />
       <path d="M18 6 6 18" />
     </svg>
@@ -140,7 +155,7 @@ function ClearIcon() {
 
 function ChevronDownIcon() {
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className="button-icon-svg">
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[1.1rem] fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
       <path d="m6 9 6 6 6-6" />
     </svg>
   );
@@ -798,70 +813,70 @@ function App() {
   }
 
   return (
-    <main className="app-shell">
+    <main className="flex flex-col gap-4 tablet:gap-[0.85rem]">
       {/* ─── Auth Banner ─── */}
       {authUser ? (
-        <div className="auth-banner">
-          <span className="auth-user-info">
+        <div className="flex items-center justify-between gap-3 rounded-[24px] border border-surface bg-auth px-4 py-[0.65rem] text-[0.85rem] text-muted">
+          <span className="flex items-center gap-2 text-primary">
             {authUser.avatarUrl ? (
-              <img src={authUser.avatarUrl} alt="" className="auth-avatar" />
+              <img src={authUser.avatarUrl} alt="" className="size-[26px] rounded-full border-[1.5px] border-[rgba(37,161,142,0.5)]" />
             ) : null}
-            <span className="auth-name">{authUser.name}</span>
+            <span className="text-[0.85rem] font-semibold">{authUser.name}</span>
           </span>
-          <button type="button" className="ghost-button" onClick={handleLogout}>
+          <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={handleLogout}>
             Sign out
           </button>
         </div>
       ) : (
-        <div className="auth-banner">
+        <div className="flex items-center justify-between gap-3 rounded-[24px] border border-surface bg-auth px-4 py-[0.65rem] text-[0.85rem] text-muted">
           <span>Sign in to sync your watchlist across devices</span>
-          <button type="button" className="primary-button" onClick={handleGoogleLogin} disabled={!googleReady}>
+          <button type="button" className={`${primaryButton} px-[1.1rem] py-[0.85rem]`} onClick={handleGoogleLogin} disabled={!googleReady}>
             {!googleReady ? (authError ? "Sign-in unavailable" : "Loading sign-in…") : "Sign in with Google"}
           </button>
         </div>
       )}
 
-      {authError && <div className="status-banner error-banner" role="alert">{authError}</div>}
-      {authUser && <div className="muted" role="status">{syncStatus} {syncError && <button type="button" className="ghost-button" onClick={() => setSyncRetry(value => value + 1)}>Retry sync</button>}</div>}
-      <section className="countdown-panel" aria-labelledby="next-release-title">
+      {authError && <div className={errorBanner} role="alert">{authError}</div>}
+      {authUser && <div className="text-muted" role="status">{syncStatus} {syncError && <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={() => setSyncRetry(value => value + 1)}>Retry sync</button>}</div>}
+      <section className={accentPanel} aria-labelledby="next-release-title">
         <div>
-          <span className="eyebrow">Upcoming Anime</span>
+          <span className={eyebrow}>Upcoming Anime</span>
         </div>
         {nextCountdownAnime ? (
           <>
-            <div className="countdown-header">
-              <img className="countdown-art" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
-              <div className="countdown-copy">
-                <h2 id="next-release-title">{nextCountdownAnime.title}</h2>
-                <div className="countdown-grid" aria-label="Next episode countdown" role="timer" aria-live="off">
+            <div className="grid grid-cols-[112px_minmax(0,1fr)] items-start gap-[0.8rem] mobile:grid-cols-1 mobile:justify-items-center mobile:text-center">
+              <img className="h-auto w-28 aspect-poster rounded-[20px] object-cover object-top mobile:w-full mobile:max-w-[220px]" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
+              <div className="grid min-w-0 content-start gap-[0.35rem] mobile:w-full">
+                <h2 className="text-2xl m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="next-release-title">{nextCountdownAnime.title}</h2>
+                <div className="grid grid-cols-4 gap-[0.65rem] self-start mobile:gap-[0.4rem] compact:gap-1" aria-label="Next episode countdown" role="timer" aria-live="off">
                   {countdown ? (
                     countdown.days === "00" && countdown.hours === "00" && countdown.minutes === "00" && countdown.seconds === "00" ? (
-                      <div className="countdown-unavailable" style={{ borderColor: "rgba(122, 229, 130, 0.5)" }}>
+                      <div className={`${countdownUnavailable} border-sky/50!`}>
                         <strong>Airing Now</strong>
                         <span>The next episode is airing right now!</span>
                       </div>
                     ) : (
                       <>
-                        <div className="countdown-cell">
+                        <div className={countdownCell}>
                           <strong>{countdown.days}</strong>
                           <span>Days</span>
                         </div>
-                        <div className="countdown-cell">
+                        <div className={countdownCell}>
                           <strong>{countdown.hours}</strong>
                           <span>Hours</span>
                         </div>
-                        <div className="countdown-cell">
+                        <div className={countdownCell}>
                           <strong>{countdown.minutes}</strong>
                           <span>Minutes</span>
                         </div>
-                        <div className="countdown-cell">
+                        <div className={countdownCell}>
                           <strong>{countdown.seconds}</strong>
                           <span>Seconds</span>
                         </div>
                       </>
                     )
                   ) : (
-                    <div className="countdown-unavailable">
+                    <div className={countdownUnavailable}>
                       <strong>Next Episode TBA</strong>
                       <span>The release time hasn’t been announced yet.</span>
                     </div>
@@ -871,26 +886,26 @@ function App() {
             </div>
           </>
         ) : (
-          <div className="empty-panel">
-            <h2 id="next-release-title">Build your AniCount list</h2>
+          <div className={`${emptyBase} [&>p]:text-secondary [&>p]:leading-normal`}>
+            <h2 className="m-0 text-2xl font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="next-release-title">Build your AniCount list</h2>
             <p>Select one or more anime below to pin them into your watchlist.</p>
           </div>
         )}
       </section>
 
-      <section className="watchlist-panel" aria-labelledby="watchlist-title">
-        <div className="section-heading">
+      <section className={accentPanel} aria-labelledby="watchlist-title">
+        <div className={sectionHeading}>
           <div>
-            <span className="eyebrow">Your watchlist</span>
-            <h2 id="watchlist-title">Your saved anime</h2>
+            <span className={eyebrow}>Your watchlist</span>
+            <h2 className="text-2xl m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="watchlist-title">Your saved anime</h2>
           </div>
-          <div className="section-actions">
-            <span className="muted">{watchlist.length} anime</span>
+          <div className="items-center mobile:self-start">
+            <span className="text-muted">{watchlist.length} anime</span>
             {showClearConfirm ? (
               <>
                 <button
                   type="button"
-                  className="secondary-button"
+                  className={`${secondaryButton} px-[1.1rem] py-[0.85rem]`}
                   onClick={() => {
                     clearWatchlist();
                     setShowClearConfirm(false);
@@ -899,14 +914,14 @@ function App() {
                 >
                   Clear all
                 </button>
-                <button type="button" className="ghost-button" onClick={() => setShowClearConfirm(false)} aria-label="Cancel clear watchlist">
+                <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={() => setShowClearConfirm(false)} aria-label="Cancel clear watchlist">
                   Cancel
                 </button>
               </>
             ) : (
               <button
                 type="button"
-                className="ghost-button icon-only-button"
+                className={`${ghostButton} size-11 flex-none p-0`}
                 onClick={() => setShowClearConfirm(true)}
                 disabled={watchlist.length === 0}
                 aria-label="Clear watchlist"
@@ -919,17 +934,17 @@ function App() {
         </div>
 
         {sortedWatchlist.length > 0 ? (
-          <div className="watchlist-items">
+          <div className="grid gap-[0.7rem]">
             {sortedWatchlist.map((anime) => (
-              <article key={anime.malId} className="watchlist-card">
-                <img src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
-                <div className="watchlist-card-copy">
-                  <h3>{anime.title}</h3>
+              <article key={anime.malId} className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-[0.85rem] rounded-[22px] border border-[rgba(37,161,142,0.34)] bg-watchlist-card bg-panel-strong p-3 mobile:grid-cols-[60px_minmax(0,1fr)_auto] mobile:gap-[0.65rem] mobile:p-[0.7rem]">
+                <img className="h-auto w-[72px] aspect-poster rounded-[20px] object-cover object-top mobile:w-[60px] mobile:rounded-[16px]" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
+                <div className="grid min-w-0 content-center gap-[0.35rem] [&>p]:min-w-0 [&>p]:text-[0.9rem] [&>p]:leading-[1.35] [&>p]:text-secondary mobile:[&>p]:text-[0.88rem]">
+                  <h3 className="text-[1.17em] m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]">{anime.title}</h3>
                   <p>Next ep: {formatNextEpisodeLabel(resolveNextEpisodeAt(anime, now))}</p>
                 </div>
                 <button
                   type="button"
-                  className="icon-button icon-only-button watchlist-action"
+                  className={`${ghostButton} size-11 flex-none p-0 self-center justify-self-center mobile:size-10`}
                   onClick={() => toggleWatchlist(anime)}
                   aria-label={`Remove ${anime.title} from watchlist`}
                   title={`Remove ${anime.title} from watchlist`}
@@ -940,7 +955,7 @@ function App() {
             ))}
           </div>
         ) : (
-          <div className="empty-state">
+          <div className={emptyState}>
             <p>No anime selected yet.</p>
             <span>Add titles from the upcoming list to start multiple countdowns.</span>
           </div>
@@ -948,16 +963,15 @@ function App() {
       </section>
 
       {installPrompt ? (
-        <div className="status-banner" style={{ borderColor: "rgba(122, 229, 130, 0.4)" }}>
+        <div className={`${statusBanner} border-sky/40!`}>
           Install AniCount for quick access
-          <button type="button" className="ghost-button" onClick={() => void handleInstall()} style={{ marginLeft: "0.75rem" }}>
+          <button type="button" className={`${ghostButton} ml-3 px-[1.1rem] py-[0.85rem]`} onClick={() => void handleInstall()}>
             Install
           </button>
           <button
             type="button"
-            className="icon-button icon-only-button"
+            className={`${ghostButton} ml-[0.4rem] size-11 flex-none p-0`}
             onClick={() => setInstallPrompt(null)}
-            style={{ marginLeft: "0.4rem" }}
             aria-label="Dismiss install prompt"
           >
             <ClearIcon />
@@ -965,39 +979,38 @@ function App() {
         </div>
       ) : null}
       {isOffline ? (
-        <div className="status-banner" role="status">
+        <div className={statusBanner} role="status">
           You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.
         </div>
       ) : null}
 
       {error ? (
-        <div className="status-banner error-banner" role="alert" aria-live="assertive">
+        <div className={errorBanner} role="alert" aria-live="assertive">
           {isSearchMode ? "We couldn’t load your search results." : "We couldn’t load anime right now."}{" "}
           <button
             type="button"
-            className="ghost-button"
+            className={`${ghostButton} ml-3 px-[1.1rem] py-[0.85rem]`}
             onClick={() => {
               setError(null);
               if (failedRequest?.query) void searchAnimeCatalog(failedRequest.query, failedRequest.page, failedRequest.mode);
               else void loadUpcomingAnime(failedRequest?.page ?? 1, failedRequest?.mode ?? "replace");
             }}
-            style={{ marginLeft: "0.75rem" }}
           >
             Retry
           </button>
         </div>
       ) : null}
 
-      <section className="toolbar" aria-label="Anime controls">
-        <label className="search-field">
-          <span className="eyebrow">Search all anime</span>
-          <input type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
+      <section className={`${panelBase} grid grid-cols-[minmax(0,1fr)_auto] items-center justify-between gap-3 border-surface bg-toolbar p-[1.1rem] mobile:gap-[0.7rem] mobile:p-[0.9rem]`} aria-label="Anime controls">
+        <label className="grid flex-[1_1_320px] gap-[0.35rem] font-semibold text-primary [&>span]:leading-[1.35] mobile:w-full mobile:basis-auto">
+          <span className={eyebrow}>Search all anime</span>
+          <input className="w-full rounded-[16px] border border-surface bg-search bg-panel-strong px-[0.9rem] py-[0.78rem] text-primary placeholder:text-muted placeholder:opacity-100 mobile:px-[0.85rem] mobile:py-3" type="search" value={search} onChange={(event) => handleSearchChange(event.target.value)} placeholder="Search by anime title" />
         </label>
         {isSearchMode ? (
-          <div className="toolbar-actions">
+          <div className="flex items-center self-center gap-[0.55rem] tablet:w-full tablet:self-auto">
             <button
               type="button"
-              className="secondary-button icon-only-button"
+              className={`${secondaryButton} size-11 flex-none p-0`}
               onClick={() => {
                 handleSearchChange("");
               }}
@@ -1010,56 +1023,56 @@ function App() {
         ) : null}
       </section>
 
-      <section className="upcoming-panel" aria-labelledby="upcoming-title">
-        <div className="section-heading">
+      <section className={`${panelBase} flex flex-col gap-[0.8rem] border-sky/34 bg-upcoming-panel p-[1.1rem] mobile:p-[0.9rem]`} aria-labelledby="upcoming-title">
+        <div className={sectionHeading}>
           <div>
-            <span className="eyebrow">{isSearchMode ? "Search results" : "Upcoming anime"}</span>
-            <h2 id="upcoming-title">{isSearchMode ? `Results for "${searchQuery}"` : "Browse and choose anime"}</h2>
+            <span className={eyebrow}>{isSearchMode ? "Search results" : "Upcoming anime"}</span>
+            <h2 className="text-2xl m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="upcoming-title">{isSearchMode ? `Results for "${searchQuery}"` : "Browse and choose anime"}</h2>
           </div>
-          <span className="muted">
+          <span className="text-muted">
             {visibleAnime.length} {isSearchMode ? "results" : "visible"}
           </span>
         </div>
 
         {isLoading ? (
-          <div className="empty-state">
+          <div className={emptyState}>
             <p>{isSearchMode ? "Searching all anime..." : "Loading upcoming anime..."}</p>
             <span>{isSearchMode ? "Looking through the full anime catalog." : "Pulling the latest release data."}</span>
           </div>
         ) : error && visibleAnime.length === 0 ? (
-          <div className="empty-state"><p>Anime couldn’t be loaded.</p><span>Check your connection and use Retry above. Your saved watchlist is still available.</span></div>
+          <div className={emptyState}><p>Anime couldn’t be loaded.</p><span>Check your connection and use Retry above. Your saved watchlist is still available.</span></div>
         ) : visibleAnime.length > 0 ? (
           <>
-            <div className="anime-grid">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-[0.8rem] tablet:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] mobile:grid-cols-1 mobile:gap-[0.7rem]">
               {visibleAnime.map((anime) => {
                 const isSelected = watchlistIds.has(anime.malId);
 
                 return (
-                  <article key={anime.malId} className="anime-card">
-                    <img className="anime-card-art" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
-                    <div className="anime-card-body">
-                      <div className="card-topline">
-                        <span className="card-badge">{anime.seasonLabel}</span>
-                        <span className="card-badge muted-badge">{anime.status}</span>
+                  <article key={anime.malId} className="flex h-full flex-col overflow-hidden rounded-[24px] border border-[rgba(0,165,207,0.26)] bg-anime-card bg-panel [content-visibility:auto] [contain-intrinsic-size:auto_420px] transition-[transform,border-color,box-shadow] duration-200 ease-[ease] hover:border-[rgba(0,165,207,0.5)] hover:[transform:translateY(-2px)] hover:shadow-card-focus focus-within:border-[rgba(0,165,207,0.5)] focus-within:[transform:translateY(-2px)] focus-within:shadow-card-focus mobile:rounded-[20px]">
+                    <img className="w-full aspect-poster rounded-[20px] object-cover object-top" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
+                    <div className="flex flex-1 flex-col gap-3 p-[0.85rem] mobile:gap-[0.65rem] mobile:p-3">
+                      <div className="flex flex-wrap items-center gap-[0.45rem]">
+                        <span className={`${badgeBase} border-[rgba(0,165,207,0.34)] bg-[rgba(0,165,207,0.18)] text-foam`}>{anime.seasonLabel}</span>
+                        <span className={`${badgeBase} border-[rgba(0,165,207,0.34)] bg-[rgba(0,165,207,0.18)] text-secondary`}>{anime.status}</span>
                       </div>
-                      <h3>{anime.title}</h3>
-                      <p className="release-copy">{anime.releaseLabel}</p>
-                      <p className="card-synopsis">{anime.synopsis}</p>
-                      <div className="meta-row">
+                      <h3 className="text-[1.17em] m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]">{anime.title}</h3>
+                      <p className="leading-[1.35] text-muted">{anime.releaseLabel}</p>
+                      <p className="line-clamp-4 min-h-[5.4rem] leading-normal text-secondary mobile:line-clamp-3 mobile:min-h-0 mobile:text-[0.95rem]">{anime.synopsis}</p>
+                      <div className="flex flex-wrap items-center gap-[0.45rem] text-[0.85rem] leading-[1.35] text-secondary [&>span]:inline-flex [&>span]:items-center [&>span]:rounded-[999px] [&>span]:border [&>span]:border-chip-border [&>span]:bg-chip [&>span]:px-[0.58rem] [&>span]:py-[0.3rem] [&>span]:leading-[1.2] mobile:gap-[0.38rem] mobile:text-[0.8rem] mobile:[&>span]:px-2 mobile:[&>span]:py-[0.28rem] mobile:[&>span]:leading-[1.25]">
                         <span>{anime.studio}</span>
                         <span>{anime.episodes ?? "?"} eps</span>
                         <span>Score {anime.score ?? "N/A"}</span>
                       </div>
-                      <div className="genre-row">
+                      <div className="flex min-h-8 flex-wrap gap-[0.45rem]">
                         {anime.genres.slice(0, 3).map((genre) => (
-                          <span key={genre} className="genre-pill">
+                          <span key={genre} className={`${badgeBase} border-[rgba(37,161,142,0.34)] bg-[rgba(37,161,142,0.2)] text-ice`}>
                             {genre}
                           </span>
                         ))}
                       </div>
                       <button
                         type="button"
-                        className={isSelected ? "secondary-button full-width anime-card-action" : "primary-button full-width anime-card-action"}
+                        className={`${isSelected ? secondaryButton : primaryButton} mt-auto w-full px-[1.1rem] py-[0.85rem]`}
                         onClick={() => toggleWatchlist(anime)}
                         aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                         title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
@@ -1073,10 +1086,10 @@ function App() {
             </div>
 
             {activeHasNextPage ? (
-              <div className="load-more-row">
+              <div className="flex flex-wrap items-center justify-center gap-[0.45rem] pt-1">
                 <button
                   type="button"
-                  className="primary-button icon-only-button"
+                  className={`${primaryButton} size-11 flex-none p-0`}
                   onClick={() => (isSearchMode ? void searchAnimeCatalog(searchQuery, activePage + 1, "append") : void loadUpcomingAnime(activePage + 1, "append"))}
                   disabled={isLoadingMore}
                   aria-label={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
@@ -1088,14 +1101,14 @@ function App() {
             ) : null}
           </>
         ) : (
-          <div className="empty-state">
+          <div className={emptyState}>
             <p>{isSearchMode ? "No anime matched your search." : "No upcoming anime available yet."}</p>
             <span>Try another title or clear the search to browse upcoming releases.</span>
           </div>
         )}
       </section>
 
-      <footer className="app-version">AniCount v{__APP_VERSION__}</footer>
+      <footer className="pt-4 pb-2 text-center text-xs leading-normal text-muted opacity-60">AniCount v{__APP_VERSION__}</footer>
     </main>
   );
 }
