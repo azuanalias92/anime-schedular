@@ -4,6 +4,11 @@ import { registerSW } from 'virtual:pwa-register'
 import { Analytics } from '@vercel/analytics/react'
 import './index.css'
 import App from './App.tsx'
+import { applyTheme, messages, readLocale, readTheme } from './i18n'
+
+// Apply saved preferences before the first render so the page doesn't flash.
+applyTheme(readTheme())
+document.documentElement.lang = messages[readLocale()].htmlLang
 
 registerSW({ immediate: true })
 

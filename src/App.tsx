@@ -1,4 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  messages,
+  localeNames,
+  readLocale,
+  saveLocale,
+  readTheme,
+  applyTheme,
+  translateLabel,
+  translateSeason,
+  type Locale,
+  type Messages,
+  type ThemePreference,
+  type SyncStatus,
+  type AuthErrorKind,
+} from "./i18n";
 
 declare const __APP_VERSION__: string;
 import {
@@ -29,7 +44,7 @@ const eyebrow = "text-ui-label uppercase text-stone";
 const sectionTitle = "m-0 text-display-lg text-ink";
 // Countdown cells sit on the dark command surface, like a console's LCD readout.
 const countdownCell =
-  "flex flex-col items-center justify-center gap-2 rounded-sm bg-deep px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] [&>strong]:block [&>strong]:text-countdown [&>strong]:tabular-nums [&>strong]:text-on-dark [&>span]:text-ui-label [&>span]:uppercase [&>span]:text-on-dark-mute mobile:px-1 mobile:py-2 mobile:[&>strong]:text-display-lg compact:[&>span]:text-caption";
+  "flex flex-col items-center justify-center gap-2 rounded-sm bg-deep/85 px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] [&>strong]:block [&>strong]:text-countdown [&>strong]:tabular-nums [&>strong]:text-on-dark [&>span]:text-ui-label [&>span]:uppercase [&>span]:text-on-dark-mute mobile:px-1 mobile:py-2 mobile:[&>strong]:text-display-lg compact:[&>span]:text-caption";
 const badgeBase = "inline-flex h-[18px] items-center rounded-xs px-1.5 text-caption uppercase text-on-dark";
 const primaryButton = `${buttonBase} border-transparent bg-primary text-on-primary shadow-level1 hover:bg-primary-hover active:bg-primary-active`;
 const secondaryButton = `${buttonBase} border-transparent bg-secondary text-on-secondary shadow-level1 hover:bg-secondary-hover active:bg-secondary-active`;
@@ -179,7 +194,7 @@ const SWIPE_SETTLE_MS = 180;
 // Row that can be swiped left to reveal and trigger a remove action. Vertical
 // panning stays native (touch-action: pan-y); keyboard and screen-reader users
 // keep the row's own remove button.
-function SwipeToRemove({ onRemove, className, children }: { onRemove: () => void; className: string; children: ReactNode }) {
+function SwipeToRemove({ onRemove, removeLabel, className, children }: { onRemove: () => void; removeLabel: string; className: string; children: ReactNode }) {
   const rowRef = useRef<HTMLDivElement>(null);
   // The parent re-renders every second for the countdown, so read the latest
   // callback through a ref instead of restarting the removal timer.
@@ -254,7 +269,7 @@ function SwipeToRemove({ onRemove, className, children }: { onRemove: () => void
     <li className="relative overflow-hidden rounded-sm shadow-level1">
       <div className="absolute inset-0 flex items-center justify-end gap-2 bg-danger px-4 text-button-md uppercase text-on-dark" aria-hidden="true">
         <TrashIcon />
-        Remove
+        {removeLabel}
       </div>
       <div
         ref={rowRef}
@@ -316,41 +331,56 @@ function getUserLocale(): string | undefined {
   return navigator.language;
 }
 
-function formatLocalDateTime(isoDate: string | null): string {
+function formatLocalDateTime(isoDate: string | null, t: Messages = messages.en): string {
   if (!isoDate) {
-    return "Date to be announced";
+    return t.dateTba;
   }
 
   const parsedDate = new Date(isoDate);
 
   if (Number.isNaN(parsedDate.getTime())) {
-    return "Date to be announced";
+    return t.dateTba;
   }
 
-  return new Intl.DateTimeFormat(getUserLocale(), {
+  return new Intl.DateTimeFormat(t.dateLocale ?? getUserLocale(), {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(parsedDate);
 }
 
-function formatNextEpisodeLabel(isoDate: string | null): string {
+function formatNextEpisodeLabel(isoDate: string | null, t: Messages): string {
   if (!isoDate) {
-    return "Next episode date not announced";
+    return t.nextEpisodeDateTba;
   }
 
   const parsedDate = new Date(isoDate);
 
   if (Number.isNaN(parsedDate.getTime())) {
-    return "Next episode date not announced";
+    return t.nextEpisodeDateTba;
   }
 
-  const weekday = new Intl.DateTimeFormat(getUserLocale(), { weekday: "long" }).format(parsedDate);
-  return `${weekday}, ${formatLocalDateTime(isoDate)}`;
+  const weekday = new Intl.DateTimeFormat(t.dateLocale ?? getUserLocale(), { weekday: "long" }).format(parsedDate);
+  return `${weekday}, ${formatLocalDateTime(isoDate, t)}`;
 }
+
+// Start dates are stored at UTC noon, so show the date only.
+function formatReleaseDate(isoDate: string | null, t: Messages): string {
+  const parsedDate = isoDate ? new Date(isoDate) : null;
+
+  if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
+    return t.dateTba;
+  }
+
+  return new Intl.DateTimeFormat(t.dateLocale ?? getUserLocale(), { dateStyle: "medium" }).format(parsedDate);
+}
+
+// English fallbacks saved with each anime; swapped for translations when shown.
+const NO_SYNOPSIS = messages.en.noSynopsis;
+const STUDIO_TBA = messages.en.studioTba;
 
 function stripSynopsis(synopsis: string | null): string {
   if (!synopsis) {
-    return "No synopsis available yet.";
+    return NO_SYNOPSIS;
   }
 
   // Parse API markup in an inert template, then render only its plain text.
@@ -362,7 +392,7 @@ function stripSynopsis(synopsis: string | null): string {
     element.after(document.createTextNode(" "));
   });
 
-  return template.content.textContent?.replace(/\s+/g, " ").trim() || "No synopsis available yet.";
+  return template.content.textContent?.replace(/\s+/g, " ").trim() || NO_SYNOPSIS;
 }
 
 // ─── Next-episode resolution (AniList provides exact timestamps) ─────────────
@@ -444,7 +474,7 @@ function normalizeAnime(anime: AnimeApiItem): AnimeCardData {
     score: anime.averageScore,
     episodes: anime.episodes,
     members: anime.popularity,
-    studio: anime.studios?.nodes?.[0]?.name || "Studio TBA",
+    studio: anime.studios?.nodes?.[0]?.name || STUDIO_TBA,
     genres: anime.genres ?? [],
     nextAiringAt: anime.nextAiringEpisode ? anime.nextAiringEpisode.airingAt * 1000 : null,
   };
@@ -498,21 +528,19 @@ function formatCountdown(releaseAt: string | null, now: number): CountdownParts 
 }
 
 // Compact countdown for watchlist rows, e.g. "3d 4h", "4h 12m", "12m".
-function formatShortCountdown(releaseAt: string | null, now: number): string {
+function formatShortCountdown(releaseAt: string | null, now: number, t: Messages): string {
   const parts = formatCountdown(releaseAt, now);
 
   if (!parts) {
-    return "TBA";
+    return t.shortCountdownTba;
   }
 
   const days = Number(parts.days);
   const hours = Number(parts.hours);
   const minutes = Number(parts.minutes);
 
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m`;
-  return Number(parts.seconds) > 0 ? "<1m" : "Live";
+  if (days > 0 || hours > 0 || minutes > 0) return t.shortCountdown(days, hours, minutes);
+  return Number(parts.seconds) > 0 ? t.shortCountdownSoon : t.shortCountdownLive;
 }
 
 function readStoredWatchlist(): AnimeCardData[] {
@@ -597,15 +625,18 @@ function App() {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   // const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(() => window.__pwaInstallPrompt ?? null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(getStoredUser);
-  const [syncStatus, setSyncStatus] = useState("Saved on this device");
+  const [locale, setLocale] = useState<Locale>(readLocale);
+  const [theme, setTheme] = useState<ThemePreference>(readTheme);
+  const t = messages[locale];
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
   const [syncError, setSyncError] = useState(false);
   const [syncReadyUser, setSyncReadyUser] = useState<string | null>(null);
   const [syncRetry, setSyncRetry] = useState(0);
   const syncQueue = useRef(Promise.resolve());
   const requestVersion = useRef(0);
-  const [authError, setAuthError] = useState<string | null>(() => {
+  const [authError, setAuthError] = useState<AuthErrorKind | null>(() => {
     if (!redirectLogin || !("error" in redirectLogin)) return null;
-    return redirectLogin.error === "access_denied" ? "Sign-in was cancelled. Your local watchlist is safe." : "Sign-in failed. Please try again. Your local watchlist is safe.";
+    return redirectLogin.error === "access_denied" ? "cancelled" : "failed";
   });
   const [failedRequest, setFailedRequest] = useState<{ query: string; page: number; mode: "replace" | "append" } | null>(null);
   const searchQuery = useMemo(() => search.trim(), [search]);
@@ -636,6 +667,15 @@ function App() {
     window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist));
   }, [watchlist]);
 
+  useEffect(() => {
+    saveLocale(locale);
+    document.documentElement.lang = messages[locale].htmlLang;
+  }, [locale]);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
   // useEffect(() => {
   //   const capturePrompt = (event: Event) => setInstallPrompt(event as BeforeInstallPromptEvent);
   //   window.addEventListener("beforeinstallprompt", capturePrompt);
@@ -648,7 +688,7 @@ function App() {
     setAuthUser(null);
     setSyncReadyUser(null);
     setSyncError(false);
-    setSyncStatus("Saved on this device");
+    setSyncStatus("local");
   }, []);
 
   // Read cloud data before uploading, including when restoring a signed-in session.
@@ -656,7 +696,7 @@ function App() {
     if (!authUser || syncReadyUser === authUser.id) return;
     let cancelled = false;
     const timer = window.setTimeout(async () => {
-      setSyncStatus("Loading saved watchlist…");
+      setSyncStatus("loading");
       setSyncError(false);
       try {
         const remote = await fetchRemoteWatchlist();
@@ -674,7 +714,7 @@ function App() {
       } catch {
         if (!cancelled) {
           setSyncError(true);
-          setSyncStatus("Cloud sync failed. Your watchlist is saved on this device.");
+          setSyncStatus("failed");
         }
       }
     }, 0);
@@ -691,7 +731,7 @@ function App() {
     // Captured with this render's list so a newer edit is never recorded as synced.
     const revision = getLocalRevision();
     const statusTimer = window.setTimeout(() => {
-      setSyncStatus("Saving…");
+      setSyncStatus("saving");
       setSyncError(false);
     }, 0);
     const timer = window.setTimeout(() => {
@@ -702,11 +742,11 @@ function App() {
           const saved = await pushWatchlist(watchlist);
           if (!saved) throw new Error("Sync failed");
           writeSyncState({ userId, syncedAt: saved.updatedAt, syncedRevision: revision });
-          if (!cancelled) setSyncStatus("Saved across your devices");
+          if (!cancelled) setSyncStatus("saved");
         } catch {
           if (!cancelled) {
             setSyncError(true);
-            setSyncStatus("Cloud sync failed. Your watchlist is saved on this device.");
+            setSyncStatus("failed");
           }
         }
       });
@@ -952,8 +992,8 @@ function App() {
     if (!countdown) {
       return (
         <div className={countdownUnavailable}>
-          <strong>Next Episode TBA</strong>
-          <span>The release time hasn’t been announced yet.</span>
+          <strong>{t.nextEpisodeTbaTitle}</strong>
+          <span>{t.nextEpisodeTbaBody}</span>
         </div>
       );
     }
@@ -961,8 +1001,8 @@ function App() {
     if (countdown.days === "00" && countdown.hours === "00" && countdown.minutes === "00" && countdown.seconds === "00") {
       return (
         <div className={countdownUnavailable}>
-          <strong>Airing Now</strong>
-          <span>The next episode is airing right now!</span>
+          <strong>{t.airingNowTitle}</strong>
+          <span>{t.airingNowBody}</span>
         </div>
       );
     }
@@ -971,19 +1011,19 @@ function App() {
       <>
         <div className={countdownCell}>
           <strong>{countdown.days}</strong>
-          <span>Days</span>
+          <span>{t.countdownUnits.days}</span>
         </div>
         <div className={countdownCell}>
           <strong>{countdown.hours}</strong>
-          <span>Hours</span>
+          <span>{t.countdownUnits.hours}</span>
         </div>
         <div className={countdownCell}>
           <strong>{countdown.minutes}</strong>
-          <span>Mins</span>
+          <span>{t.countdownUnits.minutes}</span>
         </div>
         <div className={countdownCell}>
           <strong>{countdown.seconds}</strong>
-          <span>Secs</span>
+          <span>{t.countdownUnits.seconds}</span>
         </div>
       </>
     );
@@ -1003,23 +1043,55 @@ function App() {
     }
   }
 
+  // Design.md select: 36px tall, 4px radius, hairline border, surface background.
+  const preferenceSelect = "h-9 cursor-pointer rounded-sm border border-hairline bg-surface px-2 text-ui-label text-ink focus-visible:border-deep compact:h-11";
+  const preferenceControls = (
+    <>
+      <label className="flex items-center">
+        <span className="sr-only">{t.languageLabel}</span>
+        <select className={preferenceSelect} value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
+          {(Object.keys(localeNames) as Locale[]).map((code) => (
+            <option key={code} value={code}>
+              {localeNames[code]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center">
+        <span className="sr-only">{t.themeLabel}</span>
+        <select className={preferenceSelect} value={theme} onChange={(event) => setTheme(event.target.value as ThemePreference)}>
+          {(["system", "light", "dark"] as const).map((option) => (
+            <option key={option} value={option}>
+              {t.themes[option]}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
+  );
+
   return (
     <main className="flex flex-col gap-4 tablet:gap-3">
       {/* ─── Auth Banner ─── */}
       {authUser ? (
-        <div className="flex h-12 items-center justify-between gap-3 border-b-2 border-divider px-4 text-nav-link text-ink">
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-4 py-2 text-nav-link text-ink">
           <span className="flex items-center gap-2">
             {authUser.avatarUrl ? <img src={authUser.avatarUrl} alt="" className="size-6.5 rounded-full border border-hairline" /> : null}
             <span>{authUser.name}</span>
           </span>
-          <button type="button" className={ghostButton} onClick={handleLogout}>
-            Sign out
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {preferenceControls}
+            <button type="button" className={ghostButton} onClick={handleLogout}>
+              {t.signOut}
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="flex min-h-12 items-center justify-between gap-3 border-b-2 border-divider px-4 py-2 text-nav-link text-ink">
-          <span>Sign in to sync your watchlist across devices</span>
-          <button
+        <div className="flex min-h-12 flex-wrap items-center justify-between gap-3 border-b-2 border-divider px-4 py-2 text-nav-link text-ink">
+          <span>{t.signInPrompt}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            {preferenceControls}
+            <button
             type="button"
             className={`${buttonBase} flex-none border-hairline bg-card px-4 text-ink shadow-level1 hover:bg-bone compact:px-4`}
             onClick={() => {
@@ -1028,134 +1100,135 @@ function App() {
             }}
           >
             <GoogleIcon />
-            Sign in with Google
+            {t.signInWithGoogle}
           </button>
+          </div>
         </div>
       )}
 
       {authError && (
         <div className={errorBanner} role="alert">
-          {authError}
+          {t.authErrors[authError]}
         </div>
       )}
 
       {authUser && (
         <div className="flex items-center gap-3 px-4 text-charcoal" role="status">
-          {syncStatus == "Saved across your devices" ? "" : syncStatus}
+          {syncStatus === "saved" ? "" : t.syncStatus[syncStatus]}
           {syncError && (
             <button type="button" className={ghostButton} onClick={() => setSyncRetry((value) => value + 1)}>
-              Retry sync
+              {t.retrySync}
             </button>
           )}
         </div>
       )}
 
       {nextCountdownAnime ? (
-        <section className={`${panelBase} grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-stretch gap-4 tablet:grid-cols-1`} aria-label="Your anime">
+        <section className={`${panelBase} grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-stretch gap-4 tablet:grid-cols-1`} aria-label={t.yourAnime}>
           {/* ─── Next episode: the dark command surface ─── */}
+          {/* The poster covers the card as a hero band; a gradient keeps text legible. Its
+              height sets the row, and the watchlist beside it scrolls to match. */}
           <div
-            className="grid grid-cols-[112px_minmax(0,1fr)] gap-4 rounded-sm bg-dark p-4 text-on-dark shadow-level2 mobile:grid-cols-[72px_minmax(0,1fr)] mobile:gap-3 mobile:p-3"
+            className="relative isolate flex min-h-[26rem] flex-col justify-end gap-3 overflow-hidden rounded-sm bg-dark p-6 text-on-dark shadow-level2 mobile:min-h-[22rem] mobile:gap-2 mobile:p-4"
             role="region"
             aria-labelledby="next-release-title"
           >
-            <img className="w-full self-start aspect-poster object-cover object-top" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
-            {/* Stretches to the watchlist's height; the countdown grows to fill the rest. */}
-            <div className="flex min-w-0 flex-col gap-3 mobile:gap-2">
-              <span className="text-ui-label uppercase text-on-dark-mute">Next episode</span>
-              <h2 className="m-0 text-display-lg text-on-dark mobile:text-hero-tagline" id="next-release-title">
-                {nextCountdownAnime.title}
-              </h2>
-              <p className="text-on-dark-mute">{formatNextEpisodeLabel(nextCountdownAt)}</p>
-              <div className="grid min-h-32 flex-1 grid-cols-4 gap-2 mobile:hidden" aria-label="Next episode countdown" role="timer" aria-live="off">
-                {renderCountdown()}
-              </div>
-            </div>
-            {/* Phones: the countdown spans the card below the poster. */}
-            <div className="col-span-full hidden grid-cols-4 gap-2 mobile:grid compact:gap-1" aria-hidden="true">
+            <img className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]" src={nextCountdownAnime.imageUrl} alt="" loading="lazy" decoding="async" />
+            <div className="absolute inset-0 -z-10 bg-linear-to-t from-dark via-dark/75 to-dark/10" aria-hidden="true" />
+            <span className="text-ui-label uppercase text-on-dark-mute">{t.nextEpisode}</span>
+            <h2 className="m-0 text-display-lg text-on-dark [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] mobile:text-hero-tagline" id="next-release-title">
+              {nextCountdownAnime.title}
+            </h2>
+            <p className="text-on-dark-mute">{formatNextEpisodeLabel(nextCountdownAt, t)}</p>
+            <div className="grid grid-cols-4 gap-2 compact:gap-1" aria-label={t.countdownLabel} role="timer" aria-live="off">
               {renderCountdown()}
             </div>
           </div>
 
           {/* ─── Watchlist ─── */}
-          <div className="grid min-w-0 content-start gap-3" role="region" aria-labelledby="watchlist-title">
-            <div className="flex min-h-9 items-center justify-between gap-2">
-              <h2 className="m-0 flex items-center gap-2 text-hero-tagline text-ink" id="watchlist-title">
-                Your watchlist
-                <span className={`${badgeBase} bg-deep`}>{watchlist.length}</span>
-              </h2>
-              <div className="flex items-center gap-2">
-                {showClearConfirm ? (
-                  <>
-                    <button
-                      type="button"
-                      className={secondaryButton}
-                      onClick={() => {
-                        clearWatchlist();
-                        setShowClearConfirm(false);
-                      }}
-                      aria-label="Confirm clear watchlist"
-                    >
-                      Clear all
-                    </button>
-                    <button type="button" className={ghostButton} onClick={() => setShowClearConfirm(false)} aria-label="Cancel clear watchlist">
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className={`${ghostButton} ${iconButton}`}
-                    onClick={() => setShowClearConfirm(true)}
-                    aria-label="Clear watchlist"
-                    title="Clear watchlist"
-                  >
-                    <TrashIcon />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <p className="text-caption text-stone">Swipe a row left to remove it.</p>
-            <ul className="m-0 grid max-h-[22rem] list-none content-start gap-2 overflow-y-auto p-0.5 tablet:max-h-none">
-              {sortedWatchlist.map((anime) => {
-                const nextEpisodeAt = resolveNextEpisodeAt(anime, now);
-                const isNext = anime.malId === nextCountdownAnime.malId;
-
-                return (
-                  <SwipeToRemove
-                    key={anime.malId}
-                    onRemove={() => toggleWatchlist(anime)}
-                    className={`grid grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-sm border-l-4 bg-card py-2 pr-1 pl-2 ${isNext ? "border-secondary" : "border-card"}`}
-                  >
-                    <img className="w-10 aspect-poster object-cover object-top" src={anime.imageUrl} alt="" loading="lazy" decoding="async" />
-                    <div className="grid min-w-0 gap-1">
-                      <h3 className="m-0 truncate text-nav-link text-ink">{anime.title}</h3>
-                      <p className="truncate text-caption text-charcoal">{formatNextEpisodeLabel(nextEpisodeAt)}</p>
-                    </div>
-                    <span className="text-ui-label tabular-nums text-ink">{formatShortCountdown(nextEpisodeAt, now)}</span>
+          {/* Desktop: absolutely filled so the list never stretches the row; it scrolls instead. */}
+          <div className="relative min-w-0 tablet:static" role="region" aria-labelledby="watchlist-title">
+            <div className="absolute inset-0 flex flex-col gap-3 tablet:static">
+              <div className="flex min-h-9 items-center justify-between gap-2">
+                <h2 className="m-0 flex items-center gap-2 text-hero-tagline text-ink" id="watchlist-title">
+                  {t.yourWatchlist}
+                  <span className={`${badgeBase} bg-deep`}>{watchlist.length}</span>
+                </h2>
+                <div className="flex items-center gap-2">
+                  {showClearConfirm ? (
+                    <>
+                      <button
+                        type="button"
+                        className={secondaryButton}
+                        onClick={() => {
+                          clearWatchlist();
+                          setShowClearConfirm(false);
+                        }}
+                        aria-label={t.confirmClearWatchlist}
+                      >
+                        {t.clearAll}
+                      </button>
+                      <button type="button" className={ghostButton} onClick={() => setShowClearConfirm(false)} aria-label={t.cancelClearWatchlist}>
+                        {t.cancel}
+                      </button>
+                    </>
+                  ) : (
                     <button
                       type="button"
                       className={`${ghostButton} ${iconButton}`}
-                      onClick={() => toggleWatchlist(anime)}
-                      aria-label={`Remove ${anime.title} from watchlist`}
-                      title={`Remove ${anime.title} from watchlist`}
+                      onClick={() => setShowClearConfirm(true)}
+                      aria-label={t.clearWatchlist}
+                      title={t.clearWatchlist}
                     >
                       <TrashIcon />
                     </button>
-                  </SwipeToRemove>
-                );
-              })}
-            </ul>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-caption text-stone">{t.swipeHint}</p>
+              <ul className="m-0 grid min-h-0 flex-1 list-none content-start gap-2 overflow-y-auto overscroll-contain p-0.5 tablet:max-h-[22rem]">
+                {sortedWatchlist.map((anime) => {
+                  const nextEpisodeAt = resolveNextEpisodeAt(anime, now);
+                  const isNext = anime.malId === nextCountdownAnime.malId;
+
+                  return (
+                    <SwipeToRemove
+                      key={anime.malId}
+                      onRemove={() => toggleWatchlist(anime)}
+                      removeLabel={t.remove}
+                      className={`grid grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-sm border-l-4 bg-card py-2 pr-1 pl-2 ${isNext ? "border-secondary" : "border-card"}`}
+                    >
+                      <img className="w-10 aspect-poster object-cover object-top" src={anime.imageUrl} alt="" loading="lazy" decoding="async" />
+                      <div className="grid min-w-0 gap-1">
+                        <h3 className="m-0 truncate text-nav-link text-ink">{anime.title}</h3>
+                        <p className="truncate text-caption text-charcoal">{formatNextEpisodeLabel(nextEpisodeAt, t)}</p>
+                      </div>
+                      <span className="text-ui-label tabular-nums text-ink">{formatShortCountdown(nextEpisodeAt, now, t)}</span>
+                      <button
+                        type="button"
+                        className={`${ghostButton} ${iconButton}`}
+                        onClick={() => toggleWatchlist(anime)}
+                        aria-label={t.removeFromWatchlist(anime.title)}
+                        title={t.removeFromWatchlist(anime.title)}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </SwipeToRemove>
+                  );
+                })}
+              </ul>
+            </div>
           </div>
         </section>
       ) : (
         <section className={panelBase} aria-labelledby="next-release-title">
           <div className={`${insetBase} gap-2 [&>p]:text-charcoal`}>
-            <span className={eyebrow}>Your watchlist is empty</span>
+            <span className={eyebrow}>{t.emptyEyebrow}</span>
             <h2 className={sectionTitle} id="next-release-title">
-              Build your AniCount list
+              {t.emptyTitle}
             </h2>
-            <p>Search or browse below, then choose Add to Watchlist to start a live countdown for each anime.</p>
+            <p>{t.emptyBody}</p>
           </div>
         </section>
       )}
@@ -1173,13 +1246,13 @@ function App() {
       ) : null} */}
       {isOffline ? (
         <div className={statusBanner} role="status">
-          You are offline. Saved watchlist data still works, but fresh anime updates need an internet connection.
+          {t.offline}
         </div>
       ) : null}
 
       {error ? (
         <div className={errorBanner} role="alert" aria-live="assertive">
-          {isSearchMode ? "We couldn’t load your search results." : "We couldn’t load anime right now."}{" "}
+          {isSearchMode ? t.loadSearchFailed : t.loadFailed}{" "}
           <button
             type="button"
             className={alertButton}
@@ -1189,7 +1262,7 @@ function App() {
               else void loadUpcomingAnime(failedRequest?.page ?? 1, failedRequest?.mode ?? "replace");
             }}
           >
-            Retry
+            {t.retry}
           </button>
         </div>
       ) : null}
@@ -1197,17 +1270,17 @@ function App() {
       <section className={accentPanel} aria-labelledby="upcoming-title">
         <div className="grid grid-cols-[minmax(0,1fr)_minmax(260px,380px)] items-end gap-4 mobile:grid-cols-1 mobile:gap-3">
           <div className="grid min-w-0 content-start gap-1">
-            <span className={eyebrow}>{isSearchMode ? "Search results" : "Upcoming anime"}</span>
+            <span className={eyebrow}>{isSearchMode ? t.searchResults : t.upcomingAnime}</span>
             <h2 className={sectionTitle} id="upcoming-title">
-              {isSearchMode ? `Results for "${searchQuery}"` : "Browse and choose anime"}
+              {isSearchMode ? t.resultsFor(searchQuery) : t.browseTitle}
             </h2>
             <span className="text-ui-label uppercase text-charcoal">
-              {visibleAnime.length} {isSearchMode ? "results" : "visible"}
+              {isSearchMode ? t.resultCount(visibleAnime.length) : t.visibleCount(visibleAnime.length)}
             </span>
           </div>
           <div className="flex items-center gap-2" role="search">
             <label className="relative flex-1">
-              <span className="sr-only">Search all anime</span>
+              <span className="sr-only">{t.searchLabel}</span>
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-stone">
                 <SearchIcon />
               </span>
@@ -1216,7 +1289,7 @@ function App() {
                 type="search"
                 value={search}
                 onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="Search all anime by title"
+                placeholder={t.searchPlaceholder}
               />
             </label>
             {isSearchMode ? (
@@ -1226,8 +1299,8 @@ function App() {
                 onClick={() => {
                   handleSearchChange("");
                 }}
-                aria-label="Clear search results"
-                title="Clear search results"
+                aria-label={t.clearSearch}
+                title={t.clearSearch}
               >
                 <ClearIcon />
               </button>
@@ -1237,13 +1310,13 @@ function App() {
 
         {isLoading ? (
           <div className={emptyState}>
-            <p>{isSearchMode ? "Searching all anime..." : "Loading upcoming anime..."}</p>
-            <span>{isSearchMode ? "Looking through the full anime catalog." : "Pulling the latest release data."}</span>
+            <p>{isSearchMode ? t.searchingTitle : t.loadingTitle}</p>
+            <span>{isSearchMode ? t.searchingBody : t.loadingBody}</span>
           </div>
         ) : error && visibleAnime.length === 0 ? (
           <div className={emptyState}>
-            <p>Anime couldn’t be loaded.</p>
-            <span>Check your connection and use Retry above. Your saved watchlist is still available.</span>
+            <p>{t.loadErrorTitle}</p>
+            <span>{t.loadErrorBody}</span>
           </div>
         ) : visibleAnime.length > 0 ? (
           <>
@@ -1259,21 +1332,21 @@ function App() {
                     <img className="w-full aspect-poster object-cover object-top" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
                     <div className="flex flex-1 flex-col gap-3 p-4 mobile:p-3">
                       <div className="flex flex-wrap items-center gap-1">
-                        <span className={`${badgeBase} bg-badge-info`}>{anime.seasonLabel}</span>
-                        <span className={`${badgeBase} bg-badge-success`}>{anime.status}</span>
+                        <span className={`${badgeBase} bg-badge-info`}>{translateSeason(t, anime.seasonLabel)}</span>
+                        <span className={`${badgeBase} bg-badge-success`}>{translateLabel(t.statuses, anime.status)}</span>
                       </div>
                       <h3 className="m-0 text-hero-tagline text-ink">{anime.title}</h3>
-                      <p className="font-bold text-charcoal">{anime.releaseLabel}</p>
-                      <p className="line-clamp-4 min-h-[4.2rem] text-body mobile:line-clamp-3 mobile:min-h-0">{anime.synopsis}</p>
+                      <p className="font-bold text-charcoal">{formatReleaseDate(anime.releaseAt, t)}</p>
+                      <p className="line-clamp-4 min-h-[4.2rem] text-body mobile:line-clamp-3 mobile:min-h-0">{anime.synopsis === NO_SYNOPSIS ? t.noSynopsis : anime.synopsis}</p>
                       <div className="flex flex-wrap items-center gap-1 text-caption text-charcoal [&>span]:inline-flex [&>span]:h-[18px] [&>span]:items-center [&>span]:rounded-xs [&>span]:bg-bone [&>span]:px-1.5">
-                        <span>{anime.studio}</span>
-                        <span>{anime.episodes ?? "?"} eps</span>
-                        <span>Score {anime.score ?? "N/A"}</span>
+                        <span>{anime.studio === STUDIO_TBA ? t.studioTba : anime.studio}</span>
+                        <span>{t.episodes(anime.episodes)}</span>
+                        <span>{t.score(anime.score)}</span>
                       </div>
                       <div className="flex min-h-[18px] flex-wrap gap-1">
                         {anime.genres.slice(0, 3).map((genre) => (
                           <span key={genre} className={`${badgeBase} bg-deep`}>
-                            {genre}
+                            {translateLabel(t.genres, genre)}
                           </span>
                         ))}
                       </div>
@@ -1281,10 +1354,10 @@ function App() {
                         type="button"
                         className={`${isSelected ? secondaryButton : primaryButton} mt-auto w-full`}
                         onClick={() => toggleWatchlist(anime)}
-                        aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
-                        title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
+                        aria-label={isSelected ? t.removeFromWatchlist(anime.title) : t.addToWatchlistFor(anime.title)}
+                        title={isSelected ? t.removeFromWatchlist(anime.title) : t.addToWatchlistFor(anime.title)}
                       >
-                        {isSelected ? "In Watchlist" : "Add to Watchlist"}
+                        {isSelected ? t.inWatchlist : t.addToWatchlist}
                       </button>
                     </div>
                   </article>
@@ -1299,8 +1372,8 @@ function App() {
                   className={`${primaryButton} ${iconButton}`}
                   onClick={() => (isSearchMode ? void searchAnimeCatalog(searchQuery, activePage + 1, "append") : void loadUpcomingAnime(activePage + 1, "append"))}
                   disabled={isLoadingMore}
-                  aria-label={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
-                  title={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
+                  aria-label={isSearchMode ? t.loadMoreSearch : t.loadMoreUpcoming}
+                  title={isSearchMode ? t.loadMoreSearch : t.loadMoreUpcoming}
                 >
                   <ChevronDownIcon />
                 </button>
@@ -1309,8 +1382,8 @@ function App() {
           </>
         ) : (
           <div className={emptyState}>
-            <p>{isSearchMode ? "No anime matched your search." : "No upcoming anime available yet."}</p>
-            <span>Try another title or clear the search to browse upcoming releases.</span>
+            <p>{isSearchMode ? t.noSearchMatch : t.noUpcoming}</p>
+            <span>{t.emptyListHint}</span>
           </div>
         )}
       </section>
