@@ -3,25 +3,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 declare const __APP_VERSION__: string;
 import { getStoredUser, loginWithGoogle, clearAuth, fetchRemoteWatchlist, pushWatchlist, type AuthUser } from "./auth";
 
+// Component styles follow the tokens and specs in Design.md.
 const buttonBase =
-  "inline-flex items-center justify-center rounded-[999px] font-bold cursor-pointer transition-[transform,opacity,background] duration-180 ease-[ease] hover:[transform:translateY(-1px)] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none active:[transform:translateY(0)_scale(0.97)] active:brightness-90";
-const panelBase = "rounded-[28px] border shadow-panel backdrop-blur-[24px] compact:rounded-[20px]";
-const emptyBase = "grid gap-[0.35rem] rounded-[22px] border border-surface bg-panel-strong p-4 compact:p-[0.85rem]";
-const eyebrow =
-  "text-[0.72rem] leading-[1.1] font-bold tracking-[0.12em] uppercase text-sky [text-shadow:0_0_18px_rgba(0,165,207,0.18)] compact:text-[0.66rem] compact:tracking-[0.1em]";
-const sectionHeading = "flex items-center justify-between [&>div]:grid [&>div]:content-start [&>div]:gap-[0.2rem] mobile:flex-row mobile:items-start mobile:gap-[0.3rem]";
+  "inline-flex h-9 items-center justify-center gap-2 rounded-sm border px-6 text-button-md uppercase cursor-pointer transition-[background,border-color,opacity] duration-150 ease-[ease] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 compact:h-11 compact:px-7";
+const iconButton = "w-9 flex-none px-0 compact:w-11 compact:px-0";
+const panelBase = "rounded-md bg-canvas p-6 mobile:p-4 compact:p-3";
+const insetBase = "grid gap-1 rounded-sm bg-bone p-4 text-body compact:p-3";
+const eyebrow = "text-ui-label uppercase text-stone";
+const sectionTitle = "m-0 text-display-lg text-ink";
+const sectionHeading = "flex items-start justify-between gap-3 [&>div]:grid [&>div]:content-start [&>div]:gap-1";
 const countdownCell =
-  "rounded-[22px] border border-sky/30 bg-countdown bg-panel-strong p-[0.8rem] text-center [&>strong]:block [&>strong]:text-foam [&>strong]:text-[clamp(1.8rem,4vw,3rem)] [&>strong]:leading-none [&>strong]:[text-shadow:0_0_18px_rgba(159,255,203,0.15)] [&>span]:text-secondary [&>span]:leading-[1.35] mobile:px-[0.3rem] mobile:py-2 mobile:[&>strong]:text-[clamp(1.2rem,5vw,1.8rem)] mobile:[&>span]:text-[0.62rem] compact:px-[0.15rem] compact:py-[0.4rem] compact:[&>strong]:text-[clamp(1rem,5vw,1.4rem)] compact:[&>span]:text-[0.55rem]";
-const badgeBase =
-  "inline-flex items-center rounded-[999px] border px-[0.58rem] py-[0.3rem] text-[0.72rem] leading-[1.2] tracking-[0.12em] uppercase mobile:px-2 mobile:py-[0.28rem] mobile:leading-[1.25] compact:text-[0.66rem] compact:tracking-[0.1em]";
-const primaryButton = `${buttonBase} border-0 bg-primary-button text-foam shadow-primary-button`;
-const secondaryButton = `${buttonBase} border border-button-secondary-border bg-button-secondary text-foam`;
-const ghostButton = `${buttonBase} border border-[rgba(37,161,142,0.24)] bg-button-ghost text-ice hover:bg-sky/18 hover:text-foam hover:border-sky/30`;
-const accentPanel = `${panelBase} flex flex-col gap-[0.8rem] border-[rgba(37,161,142,0.4)] bg-accent-panel p-[1.1rem] mobile:p-[0.9rem]`;
-const emptyState = `${emptyBase} [&>p]:leading-[1.15] [&>span]:text-secondary [&>span]:leading-normal`;
-const countdownUnavailable = `${emptyBase} col-span-full [&>strong]:leading-[1.15] [&>span]:text-secondary [&>span]:leading-[1.35]`;
-const statusBanner = `${panelBase} border-surface bg-status px-4 py-[0.8rem] text-primary compact:px-[0.9rem] compact:py-3 compact:text-[0.92rem]`;
-const errorBanner = `${panelBase} border-[rgba(248,113,113,0.28)] bg-[rgba(127,29,29,0.4)] px-4 py-[0.8rem] text-primary compact:px-[0.9rem] compact:py-3 compact:text-[0.92rem]`;
+  "rounded-sm bg-card p-3 text-center shadow-level1 [&>strong]:block [&>strong]:text-display-xl [&>strong]:text-ink [&>span]:text-ui-label [&>span]:uppercase [&>span]:text-stone mobile:px-1 mobile:py-2 mobile:[&>strong]:text-display-lg compact:[&>span]:text-caption";
+const badgeBase = "inline-flex h-[18px] items-center rounded-xs px-1.5 text-caption uppercase text-on-dark";
+const primaryButton = `${buttonBase} border-transparent bg-primary text-on-primary shadow-level1 hover:bg-primary-hover active:bg-primary-active`;
+const secondaryButton = `${buttonBase} border-transparent bg-secondary text-on-secondary shadow-level1 hover:bg-secondary-hover active:bg-secondary-active`;
+const ghostButton = `${buttonBase} border-transparent bg-transparent text-ink hover:border-hairline active:bg-primary/6`;
+// Ghost variant for dark alert surfaces, where ink text would lose contrast.
+const alertButton = `${buttonBase} border-on-dark-mute bg-transparent text-on-dark hover:bg-on-dark/10`;
+const accentPanel = `${panelBase} flex flex-col gap-4`;
+const emptyState = `${insetBase} [&>p]:font-bold [&>p]:text-ink [&>span]:text-charcoal`;
+const countdownUnavailable = `${insetBase} col-span-full bg-card shadow-level1 [&>strong]:text-hero-tagline [&>strong]:text-ink [&>span]:text-charcoal`;
+const alertBase = "flex flex-wrap items-center gap-3 rounded-sm px-4 py-3 text-on-dark";
+const statusBanner = `${alertBase} bg-info`;
+const errorBanner = `${alertBase} bg-danger`;
 
 const API_BASE = "https://graphql.anilist.co";
 const PAGE_SIZE = 24;
@@ -835,22 +839,22 @@ function App() {
   }
 
   return (
-    <main className="flex flex-col gap-4 tablet:gap-[0.85rem]">
+    <main className="flex flex-col gap-4 tablet:gap-3">
       {/* ─── Auth Banner ─── */}
       {authUser ? (
-        <div className="flex items-center justify-between gap-3 rounded-3xl border border-surface bg-auth px-4 text-[0.85rem] text-muted">
-          <span className="flex items-center gap-2 text-primary">
-            {authUser.avatarUrl ? <img src={authUser.avatarUrl} alt="" className="size-6.5 rounded-full border-[1.5px] border-[rgba(37,161,142,0.5)]" /> : null}
-            <span className="text-[0.85rem] font-semibold">{authUser.name}</span>
+        <div className="flex h-12 items-center justify-between gap-3 border-b-2 border-divider px-4 text-nav-link text-ink">
+          <span className="flex items-center gap-2">
+            {authUser.avatarUrl ? <img src={authUser.avatarUrl} alt="" className="size-6.5 rounded-full border border-hairline" /> : null}
+            <span>{authUser.name}</span>
           </span>
-          <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={handleLogout}>
+          <button type="button" className={ghostButton} onClick={handleLogout}>
             Sign out
           </button>
         </div>
       ) : (
-        <div className="flex items-center justify-between gap-3 rounded-3xl border border-surface bg-auth px-4  text-[0.85rem] text-muted">
+        <div className="flex min-h-12 items-center justify-between gap-3 border-b-2 border-divider px-4 py-2 text-nav-link text-ink">
           <span>Sign in to sync your watchlist across devices</span>
-          <button type="button" className={`${primaryButton} px-[1.1rem] py-[0.85rem]`} onClick={handleGoogleLogin} disabled={!googleReady}>
+          <button type="button" className={primaryButton} onClick={handleGoogleLogin} disabled={!googleReady}>
             {!googleReady ? (authError ? "Sign-in unavailable" : "Loading sign-in…") : "Sign in with Google"}
           </button>
         </div>
@@ -863,10 +867,10 @@ function App() {
       )}
 
       {authUser && (
-        <div className="text-muted" role="status">
+        <div className="flex items-center gap-3 px-4 text-charcoal" role="status">
           {syncStatus == "Saved across your devices" ? "" : syncStatus}
           {syncError && (
-            <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={() => setSyncRetry((value) => value + 1)}>
+            <button type="button" className={ghostButton} onClick={() => setSyncRetry((value) => value + 1)}>
               Retry sync
             </button>
           )}
@@ -879,22 +883,22 @@ function App() {
         </div>
         {nextCountdownAnime ? (
           <>
-            <div className="grid grid-cols-[112px_minmax(0,1fr)] items-start gap-[0.8rem] mobile:grid-cols-1 mobile:justify-items-center mobile:text-center">
+            <div className="grid grid-cols-[112px_minmax(0,1fr)] items-start gap-4 mobile:grid-cols-1 mobile:justify-items-center mobile:text-center">
               <img
-                className="h-auto w-28 aspect-poster rounded-[20px] object-cover object-top mobile:w-full mobile:max-w-[220px]"
+                className="h-auto w-28 aspect-poster object-cover object-top mobile:w-full mobile:max-w-[220px]"
                 src={nextCountdownAnime.imageUrl}
                 alt={nextCountdownAnime.title}
                 loading="lazy"
                 decoding="async"
               />
-              <div className="grid min-w-0 content-start gap-[0.35rem] mobile:w-full">
-                <h2 className="text-2xl m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="next-release-title">
+              <div className="grid min-w-0 content-start gap-3 mobile:w-full">
+                <h2 className={sectionTitle} id="next-release-title">
                   {nextCountdownAnime.title}
                 </h2>
-                <div className="grid grid-cols-4 gap-[0.65rem] self-start mobile:gap-[0.4rem] compact:gap-1" aria-label="Next episode countdown" role="timer" aria-live="off">
+                <div className="grid grid-cols-4 gap-3 self-start mobile:gap-2 compact:gap-1" aria-label="Next episode countdown" role="timer" aria-live="off">
                   {countdown ? (
                     countdown.days === "00" && countdown.hours === "00" && countdown.minutes === "00" && countdown.seconds === "00" ? (
-                      <div className={`${countdownUnavailable} border-sky/50!`}>
+                      <div className={countdownUnavailable}>
                         <strong>Airing Now</strong>
                         <span>The next episode is airing right now!</span>
                       </div>
@@ -929,8 +933,8 @@ function App() {
             </div>
           </>
         ) : (
-          <div className={`${emptyBase} [&>p]:text-secondary [&>p]:leading-normal`}>
-            <h2 className="m-0 text-2xl font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="next-release-title">
+          <div className={`${insetBase} gap-2 [&>p]:text-charcoal`}>
+            <h2 className={sectionTitle} id="next-release-title">
               Build your AniCount list
             </h2>
             <p>Select one or more anime below to pin them into your watchlist.</p>
@@ -943,12 +947,12 @@ function App() {
           <div>
             <span className={eyebrow}>Your watchlist - {watchlist.length} anime</span>
           </div>
-          <div className="items-center mobile:self-start">
+          <div className="flex items-center gap-2">
             {showClearConfirm ? (
               <>
                 <button
                   type="button"
-                  className={`${secondaryButton} px-[1.1rem] py-[0.85rem]`}
+                  className={secondaryButton}
                   onClick={() => {
                     clearWatchlist();
                     setShowClearConfirm(false);
@@ -957,14 +961,14 @@ function App() {
                 >
                   Clear all
                 </button>
-                <button type="button" className={`${ghostButton} px-[1.1rem] py-[0.85rem]`} onClick={() => setShowClearConfirm(false)} aria-label="Cancel clear watchlist">
+                <button type="button" className={ghostButton} onClick={() => setShowClearConfirm(false)} aria-label="Cancel clear watchlist">
                   Cancel
                 </button>
               </>
             ) : (
               <button
                 type="button"
-                className={`${ghostButton} size-8 flex-none p-0`}
+                className={`${ghostButton} ${iconButton}`}
                 onClick={() => setShowClearConfirm(true)}
                 disabled={watchlist.length === 0}
                 aria-label="Clear watchlist"
@@ -977,26 +981,26 @@ function App() {
         </div>
 
         {sortedWatchlist.length > 0 ? (
-          <div className="grid gap-[0.7rem]">
+          <div className="grid gap-3">
             {sortedWatchlist.map((anime) => (
               <article
                 key={anime.malId}
-                className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-[0.85rem] rounded-[22px] border border-[rgba(37,161,142,0.34)] bg-watchlist-card bg-panel-strong p-3 mobile:grid-cols-[60px_minmax(0,1fr)_auto] mobile:gap-[0.65rem] mobile:p-[0.7rem]"
+                className="grid grid-cols-[72px_minmax(0,1fr)_auto] items-center gap-4 rounded-sm bg-card p-4 shadow-level1 mobile:grid-cols-[60px_minmax(0,1fr)_auto] mobile:gap-3 mobile:p-3"
               >
                 <img
-                  className="h-auto w-18 aspect-poster rounded-[20px] object-cover object-top mobile:w-[60px] mobile:rounded-[16px]"
+                  className="h-auto w-18 aspect-poster object-cover object-top mobile:w-[60px]"
                   src={anime.imageUrl}
                   alt={anime.title}
                   loading="lazy"
                   decoding="async"
                 />
-                <div className="grid min-w-0 content-center gap-[0.35rem] [&>p]:min-w-0 [&>p]:text-[0.9rem] [&>p]:leading-[1.35] [&>p]:text-secondary mobile:[&>p]:text-[0.88rem]">
-                  <h3 className="text-[1.17em] m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]">{anime.title}</h3>
+                <div className="grid min-w-0 content-center gap-1 [&>p]:min-w-0 [&>p]:text-charcoal">
+                  <h3 className="m-0 text-hero-tagline text-ink">{anime.title}</h3>
                   <p>Next ep: {formatNextEpisodeLabel(resolveNextEpisodeAt(anime, now))}</p>
                 </div>
                 <button
                   type="button"
-                  className={`${ghostButton} size-8 flex-none p-0 self-center justify-self-center mobile:size-10`}
+                  className={`${ghostButton} ${iconButton} self-center justify-self-center`}
                   onClick={() => toggleWatchlist(anime)}
                   aria-label={`Remove ${anime.title} from watchlist`}
                   title={`Remove ${anime.title} from watchlist`}
@@ -1015,12 +1019,12 @@ function App() {
       </section>
 
       {/* {installPrompt ? (
-        <div className={`${statusBanner} border-sky/40!`}>
+        <div className={statusBanner}>
           Install AniCount for quick access
-          <button type="button" className={`${ghostButton} ml-3 px-[1.1rem] py-[0.85rem]`} onClick={() => void handleInstall()}>
+          <button type="button" className={alertButton} onClick={() => void handleInstall()}>
             Install
           </button>
-          <button type="button" className={`${ghostButton} ml-[0.4rem] size-11 flex-none p-0`} onClick={() => setInstallPrompt(null)} aria-label="Dismiss install prompt">
+          <button type="button" className={`${alertButton} ${iconButton}`} onClick={() => setInstallPrompt(null)} aria-label="Dismiss install prompt">
             <ClearIcon />
           </button>
         </div>
@@ -1036,7 +1040,7 @@ function App() {
           {isSearchMode ? "We couldn’t load your search results." : "We couldn’t load anime right now."}{" "}
           <button
             type="button"
-            className={`${ghostButton} ml-3 px-[1.1rem] py-[0.85rem]`}
+            className={alertButton}
             onClick={() => {
               setError(null);
               if (failedRequest?.query) void searchAnimeCatalog(failedRequest.query, failedRequest.page, failedRequest.mode);
@@ -1049,13 +1053,13 @@ function App() {
       ) : null}
 
       <section
-        className={`${panelBase} grid grid-cols-[minmax(0,1fr)_auto] items-center justify-between gap-3 border-surface bg-toolbar p-[1.1rem] mobile:gap-[0.7rem] mobile:p-[0.9rem]`}
+        className={`${panelBase} grid grid-cols-[minmax(0,1fr)_auto] items-end justify-between gap-3`}
         aria-label="Anime controls"
       >
-        <label className="grid flex-[1_1_320px] gap-[0.35rem] font-semibold text-primary [&>span]:leading-[1.35] mobile:w-full mobile:basis-auto">
+        <label className="grid flex-[1_1_320px] gap-2 mobile:w-full mobile:basis-auto">
           <span className={eyebrow}>Search all anime</span>
           <input
-            className="w-full rounded-[16px] border border-surface bg-search bg-panel-strong px-[0.9rem] py-[0.78rem] text-primary placeholder:text-muted placeholder:opacity-100 mobile:px-[0.85rem] mobile:py-3"
+            className="h-9 w-full rounded-sm border border-hairline bg-surface px-3 text-body-md text-body placeholder:text-stone placeholder:opacity-100 focus-visible:border-deep compact:h-11"
             type="search"
             value={search}
             onChange={(event) => handleSearchChange(event.target.value)}
@@ -1063,10 +1067,10 @@ function App() {
           />
         </label>
         {isSearchMode ? (
-          <div className="flex items-center self-center gap-[0.55rem] tablet:w-full tablet:self-auto">
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className={`${secondaryButton} size-11 flex-none p-0`}
+              className={`${secondaryButton} ${iconButton}`}
               onClick={() => {
                 handleSearchChange("");
               }}
@@ -1079,15 +1083,15 @@ function App() {
         ) : null}
       </section>
 
-      <section className={`${panelBase} flex flex-col gap-[0.8rem] border-sky/34 bg-upcoming-panel p-[1.1rem] mobile:p-[0.9rem]`} aria-labelledby="upcoming-title">
+      <section className={accentPanel} aria-labelledby="upcoming-title">
         <div className={sectionHeading}>
           <div>
             <span className={eyebrow}>{isSearchMode ? "Search results" : "Upcoming anime"}</span>
-            <h2 className="text-2xl m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]" id="upcoming-title">
+            <h2 className={sectionTitle} id="upcoming-title">
               {isSearchMode ? `Results for "${searchQuery}"` : "Browse and choose anime"}
             </h2>
           </div>
-          <span className="text-muted">
+          <span className="flex-none text-ui-label uppercase text-charcoal">
             {visibleAnime.length} {isSearchMode ? "results" : "visible"}
           </span>
         </div>
@@ -1104,39 +1108,39 @@ function App() {
           </div>
         ) : visibleAnime.length > 0 ? (
           <>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-[0.8rem] tablet:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] mobile:grid-cols-1 mobile:gap-[0.7rem]">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-3 tablet:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] mobile:grid-cols-1">
               {visibleAnime.map((anime) => {
                 const isSelected = watchlistIds.has(anime.malId);
 
                 return (
                   <article
                     key={anime.malId}
-                    className="flex h-full flex-col overflow-hidden rounded-3xl border border-[rgba(0,165,207,0.26)] bg-anime-card bg-panel [content-visibility:auto] [contain-intrinsic-size:auto_420px] transition-[transform,border-color,box-shadow] duration-200 ease-[ease] hover:border-[rgba(0,165,207,0.5)] hover:[transform:translateY(-2px)] hover:shadow-card-focus focus-within:border-[rgba(0,165,207,0.5)] focus-within:[transform:translateY(-2px)] focus-within:shadow-card-focus mobile:rounded-[20px]"
+                    className="flex h-full flex-col overflow-hidden rounded-sm bg-card shadow-level1 [content-visibility:auto] [contain-intrinsic-size:auto_420px] transition-shadow duration-150 ease-[ease] hover:shadow-level2 focus-within:shadow-level2"
                   >
-                    <img className="w-full aspect-poster rounded-[20px] object-cover object-top" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
-                    <div className="flex flex-1 flex-col gap-3 p-[0.85rem] mobile:gap-[0.65rem] mobile:p-3">
-                      <div className="flex flex-wrap items-center gap-[0.45rem]">
-                        <span className={`${badgeBase} border-[rgba(0,165,207,0.34)] bg-[rgba(0,165,207,0.18)] text-foam`}>{anime.seasonLabel}</span>
-                        <span className={`${badgeBase} border-[rgba(0,165,207,0.34)] bg-[rgba(0,165,207,0.18)] text-secondary`}>{anime.status}</span>
+                    <img className="w-full aspect-poster object-cover object-top" src={anime.imageUrl} alt={anime.title} loading="lazy" decoding="async" />
+                    <div className="flex flex-1 flex-col gap-3 p-4 mobile:p-3">
+                      <div className="flex flex-wrap items-center gap-1">
+                        <span className={`${badgeBase} bg-badge-info`}>{anime.seasonLabel}</span>
+                        <span className={`${badgeBase} bg-badge-success`}>{anime.status}</span>
                       </div>
-                      <h3 className="text-[1.17em] m-0 font-bold leading-[1.15] text-primary mobile:text-[1.15rem] mobile:leading-[1.2]">{anime.title}</h3>
-                      <p className="leading-[1.35] text-muted">{anime.releaseLabel}</p>
-                      <p className="line-clamp-4 min-h-[5.4rem] leading-normal text-secondary mobile:line-clamp-3 mobile:min-h-0 mobile:text-[0.95rem]">{anime.synopsis}</p>
-                      <div className="flex flex-wrap items-center gap-[0.45rem] text-[0.85rem] leading-[1.35] text-secondary [&>span]:inline-flex [&>span]:items-center [&>span]:rounded-[999px] [&>span]:border [&>span]:border-chip-border [&>span]:bg-chip [&>span]:px-[0.58rem] [&>span]:py-[0.3rem] [&>span]:leading-[1.2] mobile:gap-[0.38rem] mobile:text-[0.8rem] mobile:[&>span]:px-2 mobile:[&>span]:py-[0.28rem] mobile:[&>span]:leading-[1.25]">
+                      <h3 className="m-0 text-hero-tagline text-ink">{anime.title}</h3>
+                      <p className="font-bold text-charcoal">{anime.releaseLabel}</p>
+                      <p className="line-clamp-4 min-h-[4.2rem] text-body mobile:line-clamp-3 mobile:min-h-0">{anime.synopsis}</p>
+                      <div className="flex flex-wrap items-center gap-1 text-caption text-charcoal [&>span]:inline-flex [&>span]:h-[18px] [&>span]:items-center [&>span]:rounded-xs [&>span]:bg-bone [&>span]:px-1.5">
                         <span>{anime.studio}</span>
                         <span>{anime.episodes ?? "?"} eps</span>
                         <span>Score {anime.score ?? "N/A"}</span>
                       </div>
-                      <div className="flex min-h-8 flex-wrap gap-[0.45rem]">
+                      <div className="flex min-h-[18px] flex-wrap gap-1">
                         {anime.genres.slice(0, 3).map((genre) => (
-                          <span key={genre} className={`${badgeBase} border-[rgba(37,161,142,0.34)] bg-[rgba(37,161,142,0.2)] text-ice`}>
+                          <span key={genre} className={`${badgeBase} bg-deep`}>
                             {genre}
                           </span>
                         ))}
                       </div>
                       <button
                         type="button"
-                        className={`${isSelected ? secondaryButton : primaryButton} mt-auto w-full px-[1.1rem] py-[0.85rem]`}
+                        className={`${isSelected ? secondaryButton : primaryButton} mt-auto w-full`}
                         onClick={() => toggleWatchlist(anime)}
                         aria-label={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
                         title={isSelected ? `Remove ${anime.title} from watchlist` : `Add ${anime.title} to watchlist`}
@@ -1150,10 +1154,10 @@ function App() {
             </div>
 
             {activeHasNextPage ? (
-              <div className="flex flex-wrap items-center justify-center gap-[0.45rem] pt-1">
+              <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                 <button
                   type="button"
-                  className={`${primaryButton} size-11 flex-none p-0`}
+                  className={`${primaryButton} ${iconButton}`}
                   onClick={() => (isSearchMode ? void searchAnimeCatalog(searchQuery, activePage + 1, "append") : void loadUpcomingAnime(activePage + 1, "append"))}
                   disabled={isLoadingMore}
                   aria-label={isSearchMode ? "Load more search results" : "Load more upcoming anime"}
@@ -1172,7 +1176,7 @@ function App() {
         )}
       </section>
 
-      <footer className="pt-4 pb-2 text-center text-xs leading-normal text-muted opacity-60">AniCount v{__APP_VERSION__}</footer>
+      <footer className="pt-4 pb-2 text-center text-caption text-charcoal">AniCount v{__APP_VERSION__}</footer>
     </main>
   );
 }

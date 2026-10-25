@@ -13,54 +13,105 @@
 @custom-variant mobile (@media (max-width: 720px));
 @custom-variant compact (@media (max-width: 480px));
 
+/* Tokens mirror the YAML front matter in Design.md. Light is the default chassis. */
 @theme {
   --font-sans: 'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --color-foam: #DBFADB;
-  --color-sky: #7AE582;
-  --color-ice: #4D9452;
+
   --color-primary: #DBFADB;
-  --color-secondary: #4D9452;
-  --color-muted: #79dcc7;
-  --color-panel: rgba(0, 0, 0, 0.82);
-  --color-panel-strong: rgba(8, 8, 8, 0.94);
-  --color-chip: rgba(159, 255, 203, 0.14);
-  --color-chip-border: rgba(122, 229, 130, 0.28);
-  --color-surface: rgba(0, 165, 207, 0.28);
-  --color-button-ghost: rgba(37, 161, 142, 0.16);
-  --color-button-secondary: rgba(122, 229, 130, 0.16);
-  --color-button-secondary-border: rgba(122, 229, 130, 0.3);
+  --color-primary-hover: #7AE582;
+  --color-primary-active: #4D9452;
+  --color-secondary: #f68d1f;
+  --color-secondary-hover: #e07d0e;
+  --color-secondary-active: #c96e00;
+  --color-success: #4a7c58;
+  --color-warning: #ecab37;
+  --color-info: #206479;
+  --color-danger: #e60012;
+  --color-background: #7a8aba;
+  --color-canvas: #9fbee7;
+  --color-bone: #c0d5e6;
+  --color-surface: #ffffff;
+  --color-card: #ffffff;
+  --color-dark: #21242e;
+  --color-deep: #3d4f97;
+  --color-ink: #21242e;
+  --color-body: #21242e;
+  --color-charcoal: #121833;
+  --color-mute: #1a1b30;
+  --color-stone: #6575a0;
+  --color-on-primary: #050505;
+  --color-on-secondary: #21242e;
+  --color-on-dark: #fcfcfc;
+  --color-on-dark-mute: rgba(252, 252, 252, 0.72);
+  --color-badge-success: #4a7c58;
+  --color-badge-warning: #ecab37;
+  --color-badge-info: #206479;
+  --color-link: #121833;
+  --color-ring-focus: rgba(61, 79, 151, 0.5);
+  --color-hairline: #dedede;
+  --color-divider: #60619c;
+
+  --text-display-xl: 44px;
+  --text-display-xl--line-height: 1;
+  --text-display-xl--font-weight: 900;
+  --text-display-lg: 24px;
+  --text-display-lg--line-height: 1;
+  --text-display-lg--font-weight: 900;
+  --text-hero-tagline: 15px;
+  --text-hero-tagline--line-height: 1.3;
+  --text-hero-tagline--font-weight: 700;
+  --text-nav-link: 13px;
+  --text-nav-link--line-height: 1;
+  --text-nav-link--font-weight: 700;
+  --text-nav-link--letter-spacing: 0.5px;
+  --text-ui-label: 11px;
+  --text-ui-label--line-height: 1.1;
+  --text-ui-label--font-weight: 700;
+  --text-ui-label--letter-spacing: 0.5px;
+  --text-body-md: 12px;
+  --text-body-md--line-height: 1.4;
+  --text-button-md: 11px;
+  --text-button-md--line-height: 1.1;
+  --text-button-md--font-weight: 700;
+  --text-button-md--letter-spacing: 0.5px;
+  --text-caption: 10px;
+  --text-caption--line-height: 1.3;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  --shadow-level1: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 1px 2px rgba(61, 79, 151, 0.3);
+  --shadow-level2: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 4px rgba(61, 79, 151, 0.4);
+  --shadow-level3: 0 2px 8px rgba(33, 36, 46, 0.5);
+
   --aspect-poster: 424 / 600;
-  --shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.42);
-  --shadow-primary-button: 0 12px 24px rgba(0, 165, 207, 0.2);
-  --shadow-card-focus: 0 24px 72px rgba(0, 165, 207, 0.18);
-  --background-image-page:
-    radial-gradient(circle at top left, rgba(159, 255, 203, 0.1), transparent 22%),
-    radial-gradient(circle at top right, rgba(122, 229, 130, 0.08), transparent 20%),
-    radial-gradient(circle at bottom right, rgba(0, 165, 207, 0.1), transparent 30%),
-    radial-gradient(circle at bottom left, rgba(37, 161, 142, 0.08), transparent 26%),
-    linear-gradient(180deg, #000000 0%, #050505 52%, #000000 100%);
-  --background-image-accent-panel:
-    linear-gradient(145deg, rgba(37, 161, 142, 0.14), rgba(0, 0, 0, 0.92) 42%),
-    linear-gradient(180deg, rgba(122, 229, 130, 0.08), rgba(6, 6, 6, 0.96));
-  --background-image-upcoming-panel:
-    linear-gradient(145deg, rgba(159, 255, 203, 0.08), rgba(0, 0, 0, 0.92) 42%),
-    linear-gradient(180deg, rgba(0, 165, 207, 0.1), rgba(6, 6, 6, 0.96));
-  --background-image-toolbar:
-    linear-gradient(145deg, rgba(159, 255, 203, 0.08), rgba(0, 0, 0, 0.92) 45%),
-    linear-gradient(180deg, rgba(37, 161, 142, 0.1), rgba(6, 6, 6, 0.96));
-  --background-image-status:
-    linear-gradient(145deg, rgba(0, 165, 207, 0.12), rgba(0, 0, 0, 0.94) 55%),
-    linear-gradient(180deg, rgba(159, 255, 203, 0.08), rgba(8, 8, 8, 0.96));
-  --background-image-countdown:
-    linear-gradient(180deg, rgba(122, 229, 130, 0.1), rgba(0, 0, 0, 0.94));
-  --background-image-search:
-    linear-gradient(180deg, rgba(37, 161, 142, 0.08), rgba(0, 0, 0, 0.96));
-  --background-image-primary-button: linear-gradient(135deg, var(--color-sky), var(--color-ice));
-  --background-image-watchlist-card:
-    linear-gradient(145deg, rgba(37, 161, 142, 0.1), rgba(0, 0, 0, 0.96) 52%);
-  --background-image-anime-card:
-    linear-gradient(180deg, rgba(159, 255, 203, 0.05), rgba(0, 0, 0, 0.94) 20%);
-  --background-image-auth: linear-gradient(135deg, rgba(37, 161, 142, 0.1), rgba(0, 0, 0, 0.8));
+}
+
+/* Dark chassis: optional, follows the OS preference. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #1a1a1a;
+    --color-canvas: #2a2a2a;
+    --color-bone: #333333;
+    --color-surface: #222222;
+    --color-card: #222222;
+    --color-dark: #0a0a0a;
+    --color-deep: #111111;
+    --color-ink: #e8e8e8;
+    --color-body: #d0d0d0;
+    --color-charcoal: #c0c0c0;
+    --color-mute: #979797;
+    --color-stone: #979797;
+    --color-on-secondary: #0a0a0a;
+    --color-link: #8ba1d4;
+    --color-ring-focus: rgba(139, 161, 212, 0.5);
+    --color-hairline: #1e1e1e;
+    --color-divider: #727272;
+    --shadow-level1: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+    --shadow-level2: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.6);
+  }
 }
 
 @layer base {
@@ -73,7 +124,7 @@
   }
 
   html {
-    @apply scheme-dark scroll-smooth bg-page font-sans font-normal leading-normal text-primary antialiased [font-synthesis:none] [text-rendering:optimizeLegibility];
+    @apply scheme-light dark:scheme-dark scroll-smooth bg-background font-sans text-body-md text-body antialiased [font-synthesis:none] [text-rendering:optimizeLegibility];
   }
 
   body {
@@ -82,6 +133,6 @@
 
   button,
   input {
-    @apply outline-2 outline-solid outline-transparent focus-visible:outline-[rgba(159,255,203,0.65)] focus-visible:outline-offset-2;
+    @apply outline-2 outline-solid outline-transparent focus-visible:outline-ring-focus focus-visible:outline-offset-2;
   }
 }

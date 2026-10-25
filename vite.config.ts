@@ -47,8 +47,8 @@ export default defineConfig({
         name: 'AniCount',
         short_name: 'AniCount',
         description: 'AniCount tracks upcoming anime release dates with a live multi-anime countdown.',
-        theme_color: '#000000',
-        background_color: '#000000',
+        theme_color: '#7a8aba',
+        background_color: '#7a8aba',
         display: 'standalone',
         start_url: '/',
         icons: [
