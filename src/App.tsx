@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 
 declare const __APP_VERSION__: string;
 import {
@@ -29,7 +29,7 @@ const eyebrow = "text-ui-label uppercase text-stone";
 const sectionTitle = "m-0 text-display-lg text-ink";
 // Countdown cells sit on the dark command surface, like a console's LCD readout.
 const countdownCell =
-  "rounded-sm bg-deep px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] [&>strong]:block [&>strong]:text-display-xl [&>strong]:tabular-nums [&>strong]:text-on-dark [&>span]:text-ui-label [&>span]:uppercase [&>span]:text-on-dark-mute mobile:px-1 mobile:py-2 mobile:[&>strong]:text-display-lg compact:[&>span]:text-caption";
+  "flex flex-col items-center justify-center gap-2 rounded-sm bg-deep px-2 py-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] [&>strong]:block [&>strong]:text-countdown [&>strong]:tabular-nums [&>strong]:text-on-dark [&>span]:text-ui-label [&>span]:uppercase [&>span]:text-on-dark-mute mobile:px-1 mobile:py-2 mobile:[&>strong]:text-display-lg compact:[&>span]:text-caption";
 const badgeBase = "inline-flex h-[18px] items-center rounded-xs px-1.5 text-caption uppercase text-on-dark";
 const primaryButton = `${buttonBase} border-transparent bg-primary text-on-primary shadow-level1 hover:bg-primary-hover active:bg-primary-active`;
 const secondaryButton = `${buttonBase} border-transparent bg-secondary text-on-secondary shadow-level1 hover:bg-secondary-hover active:bg-secondary-active`;
@@ -167,6 +167,115 @@ function ClearIcon() {
       <path d="M6 6l12 12" />
       <path d="M18 6 6 18" />
     </svg>
+  );
+}
+
+// Share of the row width a left swipe must pass to remove it on release.
+const SWIPE_REMOVE_RATIO = 0.35;
+// Movement before a press counts as a swipe, so taps and vertical scrolls pass through.
+const SWIPE_SLOP_PX = 8;
+const SWIPE_SETTLE_MS = 180;
+
+// Row that can be swiped left to reveal and trigger a remove action. Vertical
+// panning stays native (touch-action: pan-y); keyboard and screen-reader users
+// keep the row's own remove button.
+function SwipeToRemove({ onRemove, className, children }: { onRemove: () => void; className: string; children: ReactNode }) {
+  const rowRef = useRef<HTMLDivElement>(null);
+  // The parent re-renders every second for the countdown, so read the latest
+  // callback through a ref instead of restarting the removal timer.
+  const onRemoveRef = useRef(onRemove);
+  const gesture = useRef<{ pointerId: number; startX: number; startY: number; dragging: boolean } | null>(null);
+  const offsetRef = useRef(0);
+  const suppressClick = useRef(false);
+  const [offset, setOffset] = useState(0);
+  const [settling, setSettling] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  useEffect(() => {
+    onRemoveRef.current = onRemove;
+  });
+
+  useEffect(() => {
+    if (!removing) return;
+    const timer = window.setTimeout(() => onRemoveRef.current(), SWIPE_SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [removing]);
+
+  function moveTo(next: number) {
+    offsetRef.current = next;
+    setOffset(next);
+  }
+
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (removing || (event.pointerType === "mouse" && event.button !== 0)) return;
+    gesture.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dragging: false };
+    suppressClick.current = false;
+    setSettling(false);
+  }
+
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const current = gesture.current;
+    if (!current || current.pointerId !== event.pointerId) return;
+
+    const dx = event.clientX - current.startX;
+    const dy = event.clientY - current.startY;
+
+    if (!current.dragging) {
+      if (Math.abs(dy) > SWIPE_SLOP_PX && Math.abs(dy) > Math.abs(dx)) {
+        gesture.current = null; // A vertical scroll, not a swipe.
+        return;
+      }
+      if (dx > -SWIPE_SLOP_PX) return;
+      current.dragging = true;
+      suppressClick.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    moveTo(Math.min(0, dx));
+  }
+
+  function handlePointerEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    const current = gesture.current;
+    gesture.current = null;
+    if (!current?.dragging) return;
+
+    const width = rowRef.current?.offsetWidth ?? 0;
+    setSettling(true);
+
+    if (event.type === "pointerup" && width > 0 && -offsetRef.current > width * SWIPE_REMOVE_RATIO) {
+      moveTo(-width);
+      setRemoving(true);
+    } else {
+      moveTo(0);
+    }
+  }
+
+  return (
+    <li className="relative overflow-hidden rounded-sm shadow-level1">
+      <div className="absolute inset-0 flex items-center justify-end gap-2 bg-danger px-4 text-button-md uppercase text-on-dark" aria-hidden="true">
+        <TrashIcon />
+        Remove
+      </div>
+      <div
+        ref={rowRef}
+        className={`relative touch-pan-y select-none ${settling ? "transition-transform duration-180 ease-out" : ""} ${className}`}
+        style={{ transform: `translateX(${offset}px)` }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
+        onClickCapture={(event) => {
+          // A drag ending over the remove button must not also click it.
+          if (suppressClick.current) {
+            event.preventDefault();
+            event.stopPropagation();
+            suppressClick.current = false;
+          }
+        }}
+      >
+        {children}
+      </div>
+    </li>
   );
 }
 
@@ -950,14 +1059,14 @@ function App() {
             aria-labelledby="next-release-title"
           >
             <img className="w-full self-start aspect-poster object-cover object-top" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
-            {/* Stretches to the watchlist's height; the countdown pins to the bottom. */}
+            {/* Stretches to the watchlist's height; the countdown grows to fill the rest. */}
             <div className="flex min-w-0 flex-col gap-3 mobile:gap-2">
               <span className="text-ui-label uppercase text-on-dark-mute">Next episode</span>
               <h2 className="m-0 text-display-lg text-on-dark mobile:text-hero-tagline" id="next-release-title">
                 {nextCountdownAnime.title}
               </h2>
               <p className="text-on-dark-mute">{formatNextEpisodeLabel(nextCountdownAt)}</p>
-              <div className="mt-auto grid grid-cols-4 gap-2 mobile:hidden" aria-label="Next episode countdown" role="timer" aria-live="off">
+              <div className="grid min-h-32 flex-1 grid-cols-4 gap-2 mobile:hidden" aria-label="Next episode countdown" role="timer" aria-live="off">
                 {renderCountdown()}
               </div>
             </div>
@@ -1006,15 +1115,17 @@ function App() {
               </div>
             </div>
 
+            <p className="text-caption text-stone">Swipe a row left to remove it.</p>
             <ul className="m-0 grid max-h-[22rem] list-none content-start gap-2 overflow-y-auto p-0.5 tablet:max-h-none">
               {sortedWatchlist.map((anime) => {
                 const nextEpisodeAt = resolveNextEpisodeAt(anime, now);
                 const isNext = anime.malId === nextCountdownAnime.malId;
 
                 return (
-                  <li
+                  <SwipeToRemove
                     key={anime.malId}
-                    className={`grid grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-sm border-l-4 bg-card py-2 pr-1 pl-2 shadow-level1 ${isNext ? "border-secondary" : "border-transparent"}`}
+                    onRemove={() => toggleWatchlist(anime)}
+                    className={`grid grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-sm border-l-4 bg-card py-2 pr-1 pl-2 ${isNext ? "border-secondary" : "border-card"}`}
                   >
                     <img className="w-10 aspect-poster object-cover object-top" src={anime.imageUrl} alt="" loading="lazy" decoding="async" />
                     <div className="grid min-w-0 gap-1">
@@ -1031,7 +1142,7 @@ function App() {
                     >
                       <TrashIcon />
                     </button>
-                  </li>
+                  </SwipeToRemove>
                 );
               })}
             </ul>
