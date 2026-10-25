@@ -1,6 +1,8 @@
 const API_BASE = "https://anicount-api.traone.workers.dev";
 const TOKEN_KEY = "anicount-auth-token";
 const USER_KEY = "anicount-auth-user";
+const SYNC_STATE_KEY = "anicount-sync-state";
+const REVISION_KEY = "anicount-watchlist-revision";
 
 export type AuthUser = {
   id: string;
@@ -20,7 +22,8 @@ type TokenPayload = {
 function base64UrlDecode(str: string): string {
   const pad = str.length % 4 === 0 ? "" : "=".repeat(4 - (str.length % 4));
   const b64 = str.replace(/-/g, "+").replace(/_/g, "/") + pad;
-  return atob(b64);
+  // Decode as UTF-8 so non-Latin names survive.
+  return new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
 }
 
 function decodeTokenPayload(token: string): TokenPayload | null {
@@ -96,7 +99,7 @@ type WatchlistItem = {
   [key: string]: unknown;
 };
 
-export async function fetchRemoteWatchlist(): Promise<WatchlistItem[]> {
+export async function fetchRemoteWatchlist(): Promise<{ items: WatchlistItem[]; updatedAt: string | null }> {
   const headers = getAuthHeaders();
   if (!headers.Authorization) throw new Error("Please sign in again");
 
@@ -104,12 +107,13 @@ export async function fetchRemoteWatchlist(): Promise<WatchlistItem[]> {
   if (!res.ok) throw new Error("Unable to load cloud watchlist");
 
   const data = await res.json();
-  return (data.items || []) as WatchlistItem[];
+  return { items: (data.items || []) as WatchlistItem[], updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null };
 }
 
-export async function pushWatchlist(items: WatchlistItem[]): Promise<boolean> {
+/** Returns the server's save time, or null when the upload failed. */
+export async function pushWatchlist(items: WatchlistItem[]): Promise<{ updatedAt: string | null } | null> {
   const headers = getAuthHeaders();
-  if (!headers.Authorization) return false;
+  if (!headers.Authorization) return null;
 
   const res = await fetch(`${API_BASE}/watchlist`, {
     method: "PUT",
@@ -117,5 +121,60 @@ export async function pushWatchlist(items: WatchlistItem[]): Promise<boolean> {
     body: JSON.stringify({ items }),
   });
 
-  return res.ok;
+  if (!res.ok) return null;
+  const data = await res.json().catch(() => ({}));
+  return { updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null };
+}
+
+// The local revision counts user edits to the watchlist on this device. The sync
+// state records which revision and server save time were last in agreement, so
+// login can tell which side changed instead of always merging (which brought
+// deleted items back).
+
+export type SyncState = { userId: string; syncedAt: string | null; syncedRevision: number };
+export type LoginSyncStrategy = "remote" | "local" | "merge";
+
+export function getLocalRevision(): number {
+  try {
+    return Number(localStorage.getItem(REVISION_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function bumpLocalRevision(): void {
+  try {
+    localStorage.setItem(REVISION_KEY, String(getLocalRevision() + 1));
+  } catch {
+    // Without storage every login falls back to merging, which loses nothing.
+  }
+}
+
+export function readSyncState(): SyncState | null {
+  try {
+    const raw = localStorage.getItem(SYNC_STATE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed.userId === "string" && typeof parsed.syncedRevision === "number" ? (parsed as SyncState) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSyncState(state: SyncState): void {
+  try {
+    localStorage.setItem(SYNC_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // See bumpLocalRevision.
+  }
+}
+
+export function resolveLoginSync(state: SyncState | null, userId: string, localRevision: number, remoteUpdatedAt: string | null): LoginSyncStrategy {
+  // This device never synced with this account: keep everything from both sides.
+  if (!state || state.userId !== userId) return "merge";
+  // No edits here since the last sync, so the server copy is current.
+  if (localRevision === state.syncedRevision) return "remote";
+  // Only this device changed since the last sync.
+  if (remoteUpdatedAt !== null && remoteUpdatedAt === state.syncedAt) return "local";
+  // Both sides changed: merge rather than drop either set of additions.
+  return "merge";
 }

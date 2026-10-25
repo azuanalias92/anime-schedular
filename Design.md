@@ -1,7 +1,7 @@
 ---
 name: Nintendo
 colors:
-  primary: '#DBFADB'
+  primary: '#e60012'
   secondary: '#f68d1f'
   success: '#4a7c58'
   warning: '#ecab37'
@@ -21,7 +21,7 @@ colors:
   mute: '#1a1b30'
   ash: '#1a1b30'
   stone: '#6575a0'
-  on-primary: '#050505'
+  on-primary: '#ffffff'
   on-secondary: '#21242e'
   on-background: '#21242e'
   on-surface: '#21242e'
@@ -38,7 +38,7 @@ colors:
   hairline: '#dedede'
   divider: '#60619c'
 colors-dark:
-  primary: '#DBFADB'
+  primary: '#e60012'
   secondary: '#f68d1f'
   success: '#4a7c58'
   warning: '#ecab37'
@@ -58,7 +58,7 @@ colors-dark:
   mute: '#979797'
   ash: '#909090'
   stone: '#979797'
-  on-primary: '#050505'
+  on-primary: '#ffffff'
   on-secondary: '#0a0a0a'
   on-background: '#e8e8e8'
   on-surface: '#e8e8e8'
@@ -76,61 +76,61 @@ colors-dark:
   divider: '#727272'
 typography:
   display-xl:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '44px'
     fontWeight: 900
     lineHeight: 1
     letterSpacing: 'normal'
   display-lg:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '24px'
     fontWeight: 900
     lineHeight: 1
     letterSpacing: 'normal'
   hero-tagline:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '15px'
     fontWeight: 700
     lineHeight: 1.3
     letterSpacing: 'normal'
   nav-link:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '13px'
     fontWeight: 700
     lineHeight: 1
     letterSpacing: '0.5px'
   ui-label:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '11px'
     fontWeight: 700
     lineHeight: 1.1
     letterSpacing: '0.5px'
   link:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '12px'
     fontWeight: 700
     lineHeight: 1.4
     letterSpacing: 'normal'
   body-md:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '12px'
     fontWeight: 400
     lineHeight: 1.4
     letterSpacing: 'normal'
   button-md:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '11px'
     fontWeight: 700
     lineHeight: 1.1
     letterSpacing: '0.5px'
   caption:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'Arial, Helvetica, sans-serif'
     fontSize: '10px'
     fontWeight: 400
     lineHeight: 1.3
     letterSpacing: 'normal'
   code-md:
-    fontFamily: "'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    fontFamily: 'VT323, Courier New, monospace'
     fontSize: '12px'
     fontWeight: 400
     lineHeight: 1.4
@@ -291,9 +291,9 @@ The emotional response should be one of **competent nostalgia**: this feels fami
 
 The Nintendo theme operates on a **Scarce Signal Principle**: brand colors appear sparingly, like warning lights on a control panel. When they glow, you notice.
 
-**Primary — Foam Mint (`{colors.primary}`)**: A pale, glowing mint (#DBFADB) — the same value as `--color-primary` in `src/index.css`. This is the single interactive accent — reserved for primary action buttons, key highlights, and the few moments the interface needs to say "push here." It never paints large surfaces; it marks targets.
+**Primary — Nintendo Red (`{colors.primary}`)**: A pure, slightly cool red (#e60012) reminiscent of the iconic Nintendo logo mark. This is the single interactive accent — reserved for primary action buttons, critical alerts, and the few moments the interface needs to say "push here." It never paints large surfaces; it marks targets.
 
-**Secondary — Signal Orange (`{colors.secondary}`)**: A warm, amber-orange (#f68d1f) used for forward-progression actions: "next step," "continue," "launch." Think of it as the orange "Start" button on a console — it means go. The secondary never competes with primary mint for hierarchy; it operates one level below in the attention stack.
+**Secondary — Signal Orange (`{colors.secondary}`)**: A warm, amber-orange (#f68d1f) used for forward-progression actions: "next step," "continue," "launch." Think of it as the orange "Start" button on a console — it means go. The secondary never competes with primary red for hierarchy; it operates one level below in the attention stack.
 
 **Hero Accents** — Three atmospheric colors that form the hero gradient palette: `{colors.hero-warm}` (periwinkle lavender), `{colors.hero-glow}` (ice blue), and `{colors.hero-pink}` (deep crimson). These are reserved for full-bleed hero sections, mastheads, and brand-showcase moments where the interface needs to feel alive like a console home screen. They are decorative, not interactive.
 
@@ -342,7 +342,7 @@ The `{colors.on-dark}` (#fcfcfc) and `{colors.on-dark-mute}` (rgba(252,252,252,0
 - **Success** (`{colors.success}`): #4a7c58 — muted sage green, like a save-slot indicator. Confirmation without celebration.
 - **Warning** (`{colors.warning}`): #ecab37 — amber utility energy. Not alarmist, but watchful.
 - **Info** (`{colors.info}`): #206479 — systems teal. Data-level informational cues, not interactive.
-- **Danger** (`{colors.danger}`): #e60012 — a dedicated signal red, kept separate from the mint primary so destructive actions are never confused with the main call to action.
+- **Danger** (`{colors.danger}`): #e60012 — shares the primary red, because destructive actions should feel unequivocally linked to the brand's strongest signal.
 - **Link** (`{colors.link}`): #121833 in light, #8ba1d4 in dark — deep navy links in light mode that sit within the text hierarchy rather than floating above it with an unrelated blue.
 
 ---
@@ -351,11 +351,13 @@ The `{colors.on-dark}` (#fcfcfc) and `{colors.on-dark-mute}` (rgba(252,252,252,0
 
 ### Font Family
 
-The type is built on a single typeface: **Orbitron**, a geometric, squared display face with a sci-fi console character. It is self-hosted as a variable font (weights 400–900) from `/fonts/orbitron-latin-variable.woff2` and exposed through Tailwind's `--font-sans` token.
+The type is built entirely on **system fonts** — a deliberate departure from custom typefaces. Arial and Helvetica form the sans-serif stack because they are what shipped on every 2001-era PC and Mac respectively. This was the reality of the early web: you designed for the fonts everyone had.
 
-**Sans stack**: `'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` — used for everything from display headlines to captions. Orbitron's wide, angular letterforms read like labels on hardware.
+**Sans stack**: Arial, Helvetica, sans-serif — used for everything from display headlines to captions. No frills, no flourishes. Arial's neutral, no-nonsense letterforms match the utilitarian aesthetic of a console menu.
 
-**One face everywhere**: the base layer applies `font-sans` to every element, pseudo-element and native control (including `::file-selector-button`), so code, inputs and buttons all render in Orbitron too. There is no separate mono stack.
+**Mono stack**: VT323, Courier New, monospace — a pixel-inspired retro terminal face for code blocks, system messages, and debug outputs. VT323 recreates the feel of a 1990s OLED or LCD readout. Courier New serves as fallback when VT323 is unavailable.
+
+There are no display faces, no variable fonts, no web fonts to load. The interface renders immediately, the way a console OS boots without waiting.
 
 ### Hierarchy
 
@@ -363,30 +365,30 @@ The scale is intentionally compact — 10px to 44px — reflecting the informati
 
 | Token | Font | Size | Weight | Line Ht | Letter Sp | Use |
 |-------|------|------|--------|---------|-----------|-----|
-| `{typography.display-xl}` | Orbitron | 44px | 900 | 1 | normal | Hero headlines, page titles — maximum impact, black weight |
-| `{typography.display-lg}` | Orbitron | 24px | 900 | 1 | normal | Section headings — black weight for strong hierarchy |
-| `{typography.hero-tagline}` | Orbitron | 15px | 700 | 1.3 | normal | Hero subtitles, taglines — bold but compact |
-| `{typography.nav-link}` | Orbitron | 13px | 700 | 1 | 0.5px | Navigation items — bold, tight, tracked out slightly |
-| `{typography.ui-label}` | Orbitron | 11px | 700 | 1.1 | 0.5px | Field labels, legend text — all-caps compatible, bold |
-| `{typography.link}` | Orbitron | 12px | 700 | 1.4 | normal | Inline links — same size as body, distinguished by weight |
-| `{typography.body-md}` | Orbitron | 12px | 400 | 1.4 | normal | Long-form body, descriptions — the reading size |
-| `{typography.button-md}` | Orbitron | 11px | 700 | 1.1 | 0.5px | All buttons — dense, bold, tracked like a controller label |
-| `{typography.caption}` | Orbitron | 10px | 400 | 1.3 | normal | Microcopy, timestamps, badges — smallest readable size |
-| `{typography.code-md}` | Orbitron | 12px | 400 | 1.4 | normal | Inline code, system output — same face as the rest of the UI |
+| `{typography.display-xl}` | Arial, Helvetica, sans-serif | 44px | 900 | 1 | normal | Hero headlines, page titles — maximum impact, black weight |
+| `{typography.display-lg}` | Arial, Helvetica, sans-serif | 24px | 900 | 1 | normal | Section headings — black weight for strong hierarchy |
+| `{typography.hero-tagline}` | Arial, Helvetica, sans-serif | 15px | 700 | 1.3 | normal | Hero subtitles, taglines — bold but compact |
+| `{typography.nav-link}` | Arial, Helvetica, sans-serif | 13px | 700 | 1 | 0.5px | Navigation items — bold, tight, tracked out slightly |
+| `{typography.ui-label}` | Arial, Helvetica, sans-serif | 11px | 700 | 1.1 | 0.5px | Field labels, legend text — all-caps compatible, bold |
+| `{typography.link}` | Arial, Helvetica, sans-serif | 12px | 700 | 1.4 | normal | Inline links — same size as body, distinguished by weight |
+| `{typography.body-md}` | Arial, Helvetica, sans-serif | 12px | 400 | 1.4 | normal | Long-form body, descriptions — the reading size |
+| `{typography.button-md}` | Arial, Helvetica, sans-serif | 11px | 700 | 1.1 | 0.5px | All buttons — dense, bold, tracked like a controller label |
+| `{typography.caption}` | Arial, Helvetica, sans-serif | 10px | 400 | 1.3 | normal | Microcopy, timestamps, badges — smallest readable size |
+| `{typography.code-md}` | VT323, Courier New, monospace | 12px | 400 | 1.4 | normal | Inline code, system output — pixel-monospace for terminal feel |
 
 ### Principles
 
 **The Compact Information Density Principle**: At 12px body copy with 1.4 line height, a paragraph fits 40-50% more words per viewport than modern design systems. This is intentional — the interface prioritizes scanability and information access over generous whitespace. Console menus don't have margins; they have functions.
 
-**The Self-Hosted Font Principle**: Orbitron is loaded offline through a single `@font-face` declaration with `font-display: swap`, so there is no third-party font request. Text renders immediately in the system fallback and swaps to Orbitron once the variable WOFF2 loads; `font-synthesis: none` prevents faux bold or italics.
+**The System Font Reliability Principle**: No web fonts, no variable font features, no `@font-face` declarations. The interface uses what the OS provides, ensuring instant rendering, zero layout shift, and consistent behavior across every browser and device. This is the web as it was — and it still works.
 
 **The Tracking-on-Navigation Principle**: Nav links and UI labels use `0.5px` letter-spacing to distinguish themselves from body content. This subtle tracking signals "this is an interface element, not prose" — like the engraved labels beneath buttons on a console shell.
 
 ### Note on Font Substitutes
 
-If Orbitron fails to load, the stack falls back to the platform UI font (`ui-sans-serif`, `system-ui`, San Francisco, Segoe UI). Orbitron is noticeably wider than these fallbacks, so layouts must tolerate text getting narrower or wider without breaking. No functionality depends on Orbitron's exact glyph shapes.
+The sans-serif stack (Arial, Helvetica) resolves to the system default sans-serif on every modern OS. On Windows, Arial renders slightly wider than Helvetica on macOS — this is acceptable and expected. The design accounts for platform-specific rendering differences; no pixel-perfect cross-platform alignment is pursued.
 
-Only the Latin subset is bundled. Non-Latin characters (e.g. Japanese anime titles) fall through to the system font.
+VT323 is available via Google Fonts and weighs approximately 200 KB. If the font fails to load, Courier New provides a geometrically similar monospace fallback. The visual character of code blocks changes (Courier New is heavier, more compressed), but legibility and line breaks remain intact. No functionality depends on the exact glyph shape of VT323.
 
 ---
 
@@ -491,7 +493,7 @@ Images never use rounded corners by default — they sit inside containers whose
 - Background: `{colors.primary}`, text: `{colors.on-primary}`
 - Type: `{typography.button-md}` — 11px bold, 0.5px tracking
 - Rounded: `{rounded.sm}` (4px), padding: 12px 24px, height: 36px
-- Hover: `{colors.primary}` → #7AE582 (sky mint). Active/pressed: #4D9452 (ice green)
+- Hover: `{colors.primary}` → #b8000e (darker red). Active/pressed: #99000b
 - Focus ring: `{colors.ring-focus}` (2px offset). Disabled: opacity 0.5, no hover
 - The button's surface uses `{elevation.level1}` bevel (inset highlight + colored shadow) to read as a physical keycap
 
@@ -500,7 +502,7 @@ Images never use rounded corners by default — they sit inside containers whose
 - Type: `{typography.button-md}`, rounded: `{rounded.sm}`
 - Padding: 12px 24px, height: 36px
 - Hover: #e07d0e, Active: #c96e00
-- The orange signal sits one step below mint in visual hierarchy — use for "next" or "continue" actions
+- The orange signal sits one step below red in visual hierarchy — use for "next" or "continue" actions
 
 **Ghost Button** (`{component.button-ghost}`)
 - Background: transparent, text: `{colors.ink}`
@@ -569,7 +571,7 @@ Images never use rounded corners by default — they sit inside containers whose
 - Track background: `{colors.surface}` (with `{colors.hairline}` border), fill: `{colors.primary}`
 - Type: `{typography.caption}`, rounded: `{rounded.full}` (pill track)
 - Height: 8px, no padding
-- The progress bar is a groove in the surface with a mint fill — like a loading meter on a console boot screen
+- The progress bar is a groove in the surface with a red fill — like a loading meter on a console boot screen
 
 ### Feedback Components
 
@@ -585,7 +587,7 @@ Images never use rounded corners by default — they sit inside containers whose
 
 **Danger Alert** (`{component.alert-danger}`)
 - Background: `{colors.danger}`, text: `{colors.on-dark}`
-- Same dimensions. Uses `{colors.danger}` red rather than the mint primary — destructive feedback stays visually distinct from the main action
+- Same dimensions. Uses the same red as primary — destructive feedback gets the same signal strength as the primary action, creating a deliberate tension
 
 **Tooltip** (`{component.tooltip}`)
 - Background: `{colors.surface-dark}`, text: `{colors.on-dark}`
@@ -610,7 +612,7 @@ Images never use rounded corners by default — they sit inside containers whose
 
 ### Do
 
-- **Do use `{colors.primary}` (Foam Mint) exclusively for primary CTAs and key highlights.** It's the strongest signal in the system — ration it like a console's power LED.
+- **Do use `{colors.primary}` (Nintendo Red) exclusively for primary CTAs and critical alerts.** It's the strongest signal in the system — ration it like a console's power LED.
 - **Do use the bevel-based elevation (`{elevation.level1}` and `{elevation.level2}`) for all card and button surfaces.** The inset highlight creates the physical-plate feel that defines this system.
 - **Do keep body copy at `{typography.body-md}` (12px, 1.4 line height).** The compact density is intentional — this is a data-rich interface, not an editorial layout.
 - **Do use `{rounded.none}` or `{rounded.xs}` for structural elements (nav bars, tabs, table headers).** Sharp corners signal "this is the chassis, not a floating element."
@@ -622,12 +624,12 @@ Images never use rounded corners by default — they sit inside containers whose
 
 - **Don't apply soft/neumorphic shadows (large blur, neutral black).** Use bevel-based depth with colored shadows matching the `{colors.background}` chassis tone.
 - **Don't use pill-shaped corners (`{rounded.full}`) on buttons, inputs, or cards.** The system's identity is chamfered and rectilinear — pill shapes belong only to radio buttons and progress bars.
-- **Don't introduce a second typeface.** Orbitron is the only font; load it from the self-hosted file, never from a third-party CDN.
+- **Don't use custom web fonts.** The system font stack (Arial, Helvetica) is a deliberate design decision for instant rendering and no layout shift.
 - **Don't inflate spacing.** The scale maxes out at `{spacing.band}` (80px). Avoid adding 120px or 160px margins — this is not a minimalist editorial layout.
 - **Don't use pure black (#000000) for text.** Always use `{colors.ink}` or `{colors.body}` (navy-tinted near-black) to maintain color temperature alignment with the periwinkle chassis.
-- **Don't add a third brand accent beyond mint and orange.** The two-signal system (mint for act, orange for continue) is the entire interactive vocabulary — more colors dilute the meaning.
+- **Don't add a third brand accent beyond red and orange.** The two-signal system (red for act, orange for continue) is the entire interactive vocabulary — more colors dilute the meaning.
 - **Don't round photography or image containers.** Let screenshots and graphics remain rectangular — they're content, not decorative elements.
-- **Don't use `{colors.primary}` for hover states on non-primary elements.** The mint must stay scarce to preserve its attention-weight.
+- **Don't use `{colors.primary}` for hover states on non-primary elements.** The red must stay scarce to preserve its attention-weight.
 
 ---
 
@@ -672,7 +674,7 @@ On screens below 480px width, interactive targets expand to **44px minimum** to 
 
 1. **Add or modify one component at a time.** Each component change should be traceable to a specific token update in `design-token.json`. Batch changes introduce cascading style conflicts that are hard to isolate.
 
-2. **Always reference the canonical token path** in code and documentation. Use `{colors.primary}` not `#DBFADB`, `{typography.body-md}` not `12px`. This keeps the system machine-parseable and makes global changes a single token edit away.
+2. **Always reference the canonical token path** in code and documentation. Use `{colors.primary}` not `#e60012`, `{typography.body-md}` not `12px`. This keeps the system machine-parseable and makes global changes a single token edit away.
 
 3. **When introducing a new color variant, check if an existing semantic token covers the use case first.** Do you need a new badge color, or does `{colors.badge-info}` already serve the purpose? The palette is intentionally constrained — every addition increases cognitive load.
 

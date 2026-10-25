@@ -1,13 +1,5 @@
 @import "tailwindcss";
 
-@font-face {
-  font-family: 'Orbitron';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('/fonts/orbitron-latin-variable.woff2') format('woff2');
-}
-
 /* Inclusive breakpoints preserve the existing tablet and mobile layouts. */
 @custom-variant tablet (@media (max-width: 840px));
 @custom-variant mobile (@media (max-width: 720px));
@@ -15,11 +7,13 @@
 
 /* Tokens mirror the YAML front matter in Design.md. Light is the default chassis. */
 @theme {
-  --font-sans: 'Orbitron', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  /* System fonts only: no @font-face, nothing to download. */
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: VT323, 'Courier New', monospace;
 
-  --color-primary: #DBFADB;
-  --color-primary-hover: #7AE582;
-  --color-primary-active: #4D9452;
+  --color-primary: #e60012;
+  --color-primary-hover: #b8000e;
+  --color-primary-active: #99000b;
   --color-secondary: #f68d1f;
   --color-secondary-hover: #e07d0e;
   --color-secondary-active: #c96e00;
@@ -39,7 +33,7 @@
   --color-charcoal: #121833;
   --color-mute: #1a1b30;
   --color-stone: #6575a0;
-  --color-on-primary: #050505;
+  --color-on-primary: #ffffff;
   --color-on-secondary: #21242e;
   --color-on-dark: #fcfcfc;
   --color-on-dark-mute: rgba(252, 252, 252, 0.72);
@@ -115,7 +109,7 @@
 }
 
 @layer base {
-  /* Keep all text, native controls, and generated content in Orbitron. */
+  /* Native controls don't inherit the page font, so apply the stack everywhere. */
   *,
   ::before,
   ::after,

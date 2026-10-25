@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 declare const __APP_VERSION__: string;
-import { getStoredUser, loginWithGoogle, clearAuth, fetchRemoteWatchlist, pushWatchlist, type AuthUser } from "./auth";
+import {
+  getStoredUser,
+  loginWithGoogle,
+  clearAuth,
+  fetchRemoteWatchlist,
+  pushWatchlist,
+  getLocalRevision,
+  bumpLocalRevision,
+  readSyncState,
+  writeSyncState,
+  resolveLoginSync,
+  type AuthUser,
+} from "./auth";
 
 // Component styles follow the tokens and specs in Design.md.
 const buttonBase =
@@ -477,20 +489,15 @@ function App() {
 
   // ─── Google Sign-In ────────────────────────────────────────────────────────
   const [googleReady, setGoogleReady] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  const handleGoogleLogin = useCallback(() => {
-    setAuthError(null);
-    const google = window.google;
-    if (!google?.accounts?.id) {
-      setAuthError("Sign-in is unavailable. You can keep using your watchlist on this device. Reload to try again.");
-      return;
-    }
-    google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        setAuthError("Sign-in did not open. Check your browser's sign-in settings and try again. Your local watchlist is safe.");
-      }
-    });
-  }, []);
+  // Google's rendered button opens a popup on click, unlike One Tap, which Google
+  // suppresses for hours after a user dismisses it.
+  useEffect(() => {
+    const container = googleButtonRef.current;
+    if (!googleReady || authUser || !container) return;
+    window.google?.accounts.id.renderButton(container, { type: "standard", theme: "outline", size: "medium", text: "signin_with", shape: "rectangular" });
+  }, [googleReady, authUser]);
 
   useEffect(() => {
     let cancelled = false;
@@ -547,12 +554,15 @@ function App() {
       try {
         const remote = await fetchRemoteWatchlist();
         if (cancelled) return;
-        setWatchlist((current) =>
-          dedupeAnimeCards([
-            ...current,
-            ...(remote.filter((item) => typeof item.malId === "number" && typeof item.title === "string" && typeof item.status === "string") as AnimeCardData[]),
-          ]).sort(byNearestRelease),
-        );
+        const remoteItems = remote.items.filter(
+          (item) => typeof item.malId === "number" && typeof item.title === "string" && typeof item.status === "string",
+        ) as AnimeCardData[];
+        const strategy = resolveLoginSync(readSyncState(), authUser.id, getLocalRevision(), remote.updatedAt);
+        setWatchlist((current) => {
+          if (strategy === "local") return current;
+          if (strategy === "remote") return dedupeAnimeCards(remoteItems).sort(byNearestRelease);
+          return dedupeAnimeCards([...current, ...remoteItems]).sort(byNearestRelease);
+        });
         setSyncReadyUser(authUser.id);
       } catch {
         if (!cancelled) {
@@ -570,6 +580,9 @@ function App() {
   useEffect(() => {
     if (!authUser || syncReadyUser !== authUser.id) return;
     let cancelled = false;
+    const userId = authUser.id;
+    // Captured with this render's list so a newer edit is never recorded as synced.
+    const revision = getLocalRevision();
     const statusTimer = window.setTimeout(() => {
       setSyncStatus("Saving…");
       setSyncError(false);
@@ -579,7 +592,9 @@ function App() {
       syncQueue.current = syncQueue.current.then(async () => {
         if (cancelled) return;
         try {
-          if (!(await pushWatchlist(watchlist))) throw new Error("Sync failed");
+          const saved = await pushWatchlist(watchlist);
+          if (!saved) throw new Error("Sync failed");
+          writeSyncState({ userId, syncedAt: saved.updatedAt, syncedRevision: revision });
           if (!cancelled) setSyncStatus("Saved across your devices");
         } catch {
           if (!cancelled) {
@@ -800,6 +815,7 @@ function App() {
   const countdown = useMemo(() => formatCountdown(nextCountdownAt, now), [nextCountdownAt, now]);
 
   function toggleWatchlist(anime: AnimeCardData) {
+    bumpLocalRevision();
     setWatchlist((currentWatchlist) => {
       const exists = currentWatchlist.some((item) => item.malId === anime.malId);
 
@@ -821,6 +837,7 @@ function App() {
   // }
 
   function clearWatchlist() {
+    bumpLocalRevision();
     setWatchlist([]);
   }
 
@@ -854,9 +871,12 @@ function App() {
       ) : (
         <div className="flex min-h-12 items-center justify-between gap-3 border-b-2 border-divider px-4 py-2 text-nav-link text-ink">
           <span>Sign in to sync your watchlist across devices</span>
-          <button type="button" className={primaryButton} onClick={handleGoogleLogin} disabled={!googleReady}>
-            {!googleReady ? (authError ? "Sign-in unavailable" : "Loading sign-in…") : "Sign in with Google"}
-          </button>
+          {googleReady ? null : (
+            <button type="button" className={primaryButton} disabled>
+              {authError ? "Sign-in unavailable" : "Loading sign-in…"}
+            </button>
+          )}
+          <div ref={googleButtonRef} className={googleReady ? "flex-none" : "hidden"} />
         </div>
       )}
 
