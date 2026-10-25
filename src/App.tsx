@@ -38,7 +38,9 @@ const redirectLogin = consumeRedirectLogin();
 // Component styles follow the tokens and specs in Design.md.
 const buttonBase =
   "inline-flex h-9 items-center justify-center gap-2 rounded-sm border px-6 text-button-md uppercase cursor-pointer transition-[background,border-color,opacity] duration-150 ease-[ease] active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 compact:h-11 compact:px-7";
-const iconButton = "w-9 flex-none px-0 compact:w-11 compact:px-0";
+// px-0! must beat buttonBase's px-6: Tailwind orders same-property utilities by value,
+// not class order, so a plain px-0 loses and squeezes the icon to zero width.
+const iconButton = "w-9 flex-none px-0! compact:w-11 compact:px-0!";
 const panelBase = "rounded-md bg-canvas p-6 mobile:p-4 compact:p-3";
 const insetBase = "grid gap-1 rounded-sm bg-bone p-4 text-body compact:p-3";
 const eyebrow = "text-ui-label uppercase text-stone";
@@ -1126,7 +1128,7 @@ function App() {
             {preferenceControls}
             <button
             type="button"
-            className={`${buttonBase} flex-none border-hairline bg-card px-4 text-ink shadow-level1 hover:bg-bone compact:px-4`}
+            className={`${buttonBase} flex-none border-hairline bg-card px-4! text-ink shadow-level1 hover:bg-bone compact:px-4!`}
             onClick={() => {
               setAuthError(null);
               startGoogleSignIn();
