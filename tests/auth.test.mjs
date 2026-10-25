@@ -1,6 +1,62 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { getStoredUser, fetchRemoteWatchlist, pushWatchlist, resolveLoginSync } from '../src/auth.ts'
+import { getStoredUser, fetchRemoteWatchlist, pushWatchlist, resolveLoginSync, consumeRedirectLogin } from '../src/auth.ts'
+
+function memoryStorage(entries = []) {
+  const data = new Map(entries)
+  return { data, getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, String(value)), removeItem: key => data.delete(key) }
+}
+
+function withBrowser(hash, sessionEntries, run) {
+  const names = ['location', 'history', 'localStorage', 'sessionStorage']
+  const saved = names.map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)])
+  const local = memoryStorage()
+  const session = memoryStorage(sessionEntries)
+  const replaced = []
+  const values = {
+    location: { hash, pathname: '/', search: '', origin: 'https://anicount.vercel.app' },
+    history: { replaceState: (_s, _t, url) => replaced.push(url) },
+    localStorage: local,
+    sessionStorage: session,
+  }
+  for (const name of names) Object.defineProperty(globalThis, name, { configurable: true, value: values[name] })
+  try {
+    run({ local, session, replaced })
+  } finally {
+    for (const [name, descriptor] of saved) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor)
+      else delete globalThis[name]
+    }
+  }
+}
+
+test('redirect login stores the session only when the nonce matches this tab', () => {
+  const user = { id: 'u1', email: 'a@b.c', name: 'A', avatarUrl: '' }
+  const nonce = 'abc.https%3A%2F%2Fanicount.vercel.app'
+  const hashFor = n => `#${new URLSearchParams({ auth: JSON.stringify({ token: 't', user, nonce: n }) })}`
+
+  withBrowser(hashFor(nonce), [['anicount-login-nonce', nonce]], ({ local, session, replaced }) => {
+    assert.deepEqual(consumeRedirectLogin(), { user })
+    assert.equal(local.data.get('anicount-auth-token'), 't')
+    assert.equal(session.data.has('anicount-login-nonce'), false)
+    assert.deepEqual(replaced, ['/'])
+  })
+
+  // A session planted by another site (login CSRF) carries a different nonce.
+  withBrowser(hashFor('attacker.x'), [['anicount-login-nonce', nonce]], ({ local }) => {
+    assert.deepEqual(consumeRedirectLogin(), { error: 'nonce_mismatch' })
+    assert.equal(local.data.has('anicount-auth-token'), false)
+  })
+
+  withBrowser('#auth_error=invalid_google_token', [], () => {
+    assert.deepEqual(consumeRedirectLogin(), { error: 'invalid_google_token' })
+  })
+
+  withBrowser('#section', [], ({ replaced }) => {
+    assert.equal(consumeRedirectLogin(), null)
+    assert.deepEqual(replaced, [])
+  })
+})
 
 test('cloud sync sends an empty watchlist and reports failures without treating them as empty data', async () => {
   const originalFetch = globalThis.fetch

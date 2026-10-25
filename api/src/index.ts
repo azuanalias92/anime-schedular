@@ -15,18 +15,21 @@ type Variables = {
 
 const MAX_WATCHLIST_ITEMS = 500;
 
+// AniCount frontends: allowed for CORS and as redirect-login return targets.
+const APP_ORIGINS = [
+  "https://anicount.vercel.app",
+  "https://anime-schedular.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:4173",
+];
+
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // CORS — allow AniCount origins
 app.use(
   "*",
   cors({
-    origin: [
-      "https://anime-schedular.vercel.app",
-      "https://anicount.vercel.app",
-      "http://localhost:5173",
-      "http://localhost:4173",
-    ],
+    origin: APP_ORIGINS,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
     maxAge: 86400,
@@ -91,22 +94,23 @@ app.use("*", async (c, next) => {
 app.get("/", (c) => c.json({ ok: true, name: "anicount-api" }));
 
 // ─── Google Auth ──────────────────────────────────────────────────────────────
-app.post("/auth/google", async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const credential = typeof body.credential === "string" ? body.credential : "";
+type SignInResult =
+  | { ok: true; nonce: string | undefined; token: string; user: { id: string; email: string; name: string; avatarUrl: string } }
+  | { ok: false; error: "missing_credential" | "invalid_google_token" | "email_not_verified" };
 
+async function signInWithGoogle(env: Bindings, credential: string): Promise<SignInResult> {
   if (!credential) {
-    return c.json({ error: "missing_credential" }, 400);
+    return { ok: false, error: "missing_credential" };
   }
 
-  const claims = await verifyGoogleIdToken(credential, c.env.GOOGLE_CLIENT_ID);
+  const claims = await verifyGoogleIdToken(credential, env.GOOGLE_CLIENT_ID);
 
   if (!claims) {
-    return c.json({ error: "invalid_google_token" }, 401);
+    return { ok: false, error: "invalid_google_token" };
   }
 
   if (!claims.email || claims.email_verified !== true) {
-    return c.json({ error: "email_not_verified" }, 401);
+    return { ok: false, error: "email_not_verified" };
   }
 
   const email = claims.email;
@@ -117,30 +121,65 @@ app.post("/auth/google", async (c) => {
   // Match on Google's stable account id; fall back to email to link accounts
   // created before google_sub was stored.
   const existing =
-    (await c.env.DB.prepare("SELECT id FROM users WHERE google_sub = ?").bind(claims.sub).first<{ id: string }>()) ??
-    (await c.env.DB.prepare("SELECT id FROM users WHERE email = ? AND google_sub IS NULL").bind(email).first<{ id: string }>());
+    (await env.DB.prepare("SELECT id FROM users WHERE google_sub = ?").bind(claims.sub).first<{ id: string }>()) ??
+    (await env.DB.prepare("SELECT id FROM users WHERE email = ? AND google_sub IS NULL").bind(email).first<{ id: string }>());
 
   let userId: string;
 
   if (existing) {
     userId = existing.id;
-    await c.env.DB.prepare(
+    await env.DB.prepare(
       "UPDATE users SET google_sub = ?, email = ?, name = ?, avatar_url = ?, updated_at = ? WHERE id = ?"
     ).bind(claims.sub, email, name, avatarUrl, now, userId).run();
   } else {
     userId = crypto.randomUUID();
-    await c.env.DB.prepare(
+    await env.DB.prepare(
       "INSERT INTO users (id, google_sub, email, name, avatar_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
     ).bind(userId, claims.sub, email, name, avatarUrl, now, now).run();
   }
 
   // Generate JWT
-  const token = await generateToken({ sub: userId, email, name }, c.env.JWT_SECRET);
+  const token = await generateToken({ sub: userId, email, name }, env.JWT_SECRET);
 
-  return c.json({
-    token,
-    user: { id: userId, email, name, avatarUrl },
-  });
+  return { ok: true, nonce: claims.nonce, token, user: { id: userId, email, name, avatarUrl } };
+}
+
+// Popup sign-in: kept for app versions still cached by the service worker.
+app.post("/auth/google", async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const result = await signInWithGoogle(c.env, typeof body.credential === "string" ? body.credential : "");
+
+  if (!result.ok) {
+    return c.json({ error: result.error }, result.error === "missing_credential" ? 400 : 401);
+  }
+
+  return c.json({ token: result.token, user: result.user });
+});
+
+// Redirect sign-in: Google posts the credential here as a form, then the user is
+// sent back to the app with the session in the URL fragment, which never reaches a server.
+// Google's g_csrf_token cookie lives on the app's domain and is not sent here, so the
+// app instead checks that the nonce it generated comes back unchanged. The nonce is
+// "<random>.<app origin>", which also tells us which frontend to return to.
+app.post("/auth/google/redirect", async (c) => {
+  const form = await c.req.formData().catch(() => null);
+  const credential = form?.get("credential");
+  const result = await signInWithGoogle(c.env, typeof credential === "string" ? credential : "");
+
+  const nonce = result.ok ? result.nonce ?? "" : "";
+  let nonceOrigin = "";
+  try {
+    nonceOrigin = decodeURIComponent(nonce.slice(nonce.indexOf(".") + 1));
+  } catch {
+    // Malformed nonce: fall back to the production app, where the nonce check fails.
+  }
+  const origin = APP_ORIGINS.includes(nonceOrigin) ? nonceOrigin : APP_ORIGINS[0];
+
+  const fragment = result.ok
+    ? new URLSearchParams({ auth: JSON.stringify({ token: result.token, user: result.user, nonce }) })
+    : new URLSearchParams({ auth_error: result.error });
+
+  return c.redirect(`${origin}/#${fragment}`, 303);
 });
 
 // ─── Auth middleware ───────────────────────────────────────────────────────────

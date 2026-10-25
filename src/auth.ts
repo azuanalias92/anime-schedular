@@ -64,22 +64,63 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
-export async function loginWithGoogle(credential: string): Promise<{ token: string; user: AuthUser }> {
-  const res = await fetch(`${API_BASE}/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ credential }),
-  });
+// ─── Redirect sign-in ────────────────────────────────────────────────────────
+// Google's button navigates to Google and posts the result to the API, which
+// redirects back here with the session in the URL fragment. No popup is involved,
+// so pop-up blockers and in-app browsers can't break it.
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: "auth_failed" }));
-    throw new Error(err.error || "auth_failed");
+export const GOOGLE_LOGIN_URI = `${API_BASE}/auth/google/redirect`;
+const LOGIN_NONCE_KEY = "anicount-login-nonce";
+
+/**
+ * A per-tab nonce that Google embeds in the ID token and the API echoes back.
+ * Matching it proves this tab started the sign-in (login CSRF protection). The
+ * suffix tells the API which app origin to return to.
+ */
+export function getLoginNonce(): string {
+  try {
+    const existing = sessionStorage.getItem(LOGIN_NONCE_KEY);
+    if (existing) return existing;
+    const nonce = `${crypto.randomUUID()}.${encodeURIComponent(location.origin)}`;
+    sessionStorage.setItem(LOGIN_NONCE_KEY, nonce);
+    return nonce;
+  } catch {
+    return `${crypto.randomUUID()}.${encodeURIComponent(location.origin)}`;
   }
+}
 
-  const data = await res.json();
-  localStorage.setItem(TOKEN_KEY, data.token);
-  localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-  return data;
+/** Reads and clears a sign-in result left in the URL by the redirect. */
+export function consumeRedirectLogin(): { user: AuthUser } | { error: string } | null {
+  if (typeof location === "undefined" || !location.hash) return null;
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  const auth = params.get("auth");
+  const authError = params.get("auth_error");
+  if (!auth && !authError) return null;
+
+  // Drop the session from the address bar and history.
+  history.replaceState(null, "", location.pathname + location.search);
+
+  if (authError) return { error: authError };
+
+  try {
+    const data = JSON.parse(auth!) as { token: string; user: AuthUser; nonce: string };
+    let expected: string | null = null;
+    try {
+      expected = sessionStorage.getItem(LOGIN_NONCE_KEY);
+      sessionStorage.removeItem(LOGIN_NONCE_KEY);
+    } catch {
+      // Storage blocked: the nonce can't be checked, so reject below.
+    }
+    if (!expected || data.nonce !== expected) return { error: "nonce_mismatch" };
+    if (typeof data.token !== "string" || typeof data.user?.id !== "string") return { error: "invalid_response" };
+
+    localStorage.setItem(TOKEN_KEY, data.token);
+    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    return { user: data.user };
+  } catch {
+    return { error: "invalid_response" };
+  }
 }
 
 export function clearAuth(): void {

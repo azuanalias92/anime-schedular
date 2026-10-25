@@ -15,6 +15,7 @@ export type GoogleIdClaims = {
   email_verified?: boolean;
   name?: string;
   picture?: string;
+  nonce?: string;
 };
 
 type KeyCache = { keys: Map<string, CryptoKey>; expiresAt: number };

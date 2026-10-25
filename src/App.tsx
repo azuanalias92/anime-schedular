@@ -3,7 +3,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 declare const __APP_VERSION__: string;
 import {
   getStoredUser,
-  loginWithGoogle,
+  consumeRedirectLogin,
+  getLoginNonce,
+  GOOGLE_LOGIN_URI,
   clearAuth,
   fetchRemoteWatchlist,
   pushWatchlist,
@@ -14,6 +16,9 @@ import {
   resolveLoginSync,
   type AuthUser,
 } from "./auth";
+
+// Read once at startup, before the first render stores or clears the session.
+const redirectLogin = consumeRedirectLogin();
 
 // Component styles follow the tokens and specs in Design.md.
 const buttonBase =
@@ -451,7 +456,9 @@ function App() {
   const [syncRetry, setSyncRetry] = useState(0);
   const syncQueue = useRef(Promise.resolve());
   const requestVersion = useRef(0);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [authError, setAuthError] = useState<string | null>(() =>
+    redirectLogin && "error" in redirectLogin ? "Sign-in failed. Please try again. Your local watchlist is safe." : null,
+  );
   const [failedRequest, setFailedRequest] = useState<{ query: string; page: number; mode: "replace" | "append" } | null>(null);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
@@ -491,8 +498,8 @@ function App() {
   const [googleReady, setGoogleReady] = useState(false);
   const googleButtonRef = useRef<HTMLDivElement>(null);
 
-  // Google's rendered button opens a popup on click, unlike One Tap, which Google
-  // suppresses for hours after a user dismisses it.
+  // Google's rendered button, unlike One Tap, which Google suppresses for hours
+  // after a user dismisses it.
   useEffect(() => {
     const container = googleButtonRef.current;
     if (!googleReady || authUser || !container) return;
@@ -513,17 +520,11 @@ function App() {
       }
       google.accounts.id.initialize({
         client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
-        callback: async (response: { credential: string }) => {
-          try {
-            const { user } = await loginWithGoogle(response.credential);
-            if (cancelled) return;
-            setSyncReadyUser(null);
-            setAuthError(null);
-            setAuthUser(user);
-          } catch {
-            if (!cancelled) setAuthError("Sign-in failed. Please try again. Your local watchlist is safe.");
-          }
-        },
+        // Full-page redirect instead of a popup, which pop-up blockers, Safari,
+        // and in-app browsers can stop. The result is read by consumeRedirectLogin.
+        ux_mode: "redirect",
+        login_uri: GOOGLE_LOGIN_URI,
+        nonce: getLoginNonce(),
         auto_select: false,
       });
       setGoogleReady(true);
