@@ -4,8 +4,7 @@ declare const __APP_VERSION__: string;
 import {
   getStoredUser,
   consumeRedirectLogin,
-  getLoginNonce,
-  GOOGLE_LOGIN_URI,
+  startGoogleSignIn,
   clearAuth,
   fetchRemoteWatchlist,
   pushWatchlist,
@@ -167,6 +166,18 @@ function ClearIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[1.1rem] fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
       <path d="M6 6l12 12" />
       <path d="M18 6 6 18" />
+    </svg>
+  );
+}
+
+// Google's "G" mark in its brand colors, as its sign-in branding guidelines require.
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true" className="size-4 flex-none">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
     </svg>
   );
 }
@@ -483,9 +494,10 @@ function App() {
   const [syncRetry, setSyncRetry] = useState(0);
   const syncQueue = useRef(Promise.resolve());
   const requestVersion = useRef(0);
-  const [authError, setAuthError] = useState<string | null>(() =>
-    redirectLogin && "error" in redirectLogin ? "Sign-in failed. Please try again. Your local watchlist is safe." : null,
-  );
+  const [authError, setAuthError] = useState<string | null>(() => {
+    if (!redirectLogin || !("error" in redirectLogin)) return null;
+    return redirectLogin.error === "access_denied" ? "Sign-in was cancelled. Your local watchlist is safe." : "Sign-in failed. Please try again. Your local watchlist is safe.";
+  });
   const [failedRequest, setFailedRequest] = useState<{ query: string; page: number; mode: "replace" | "append" } | null>(null);
   const searchQuery = useMemo(() => search.trim(), [search]);
   const isSearchMode = searchQuery.length > 0;
@@ -522,48 +534,6 @@ function App() {
   // }, []);
 
   // ─── Google Sign-In ────────────────────────────────────────────────────────
-  const [googleReady, setGoogleReady] = useState(false);
-  const googleButtonRef = useRef<HTMLDivElement>(null);
-
-  // Google's rendered button, unlike One Tap, which Google suppresses for hours
-  // after a user dismisses it.
-  useEffect(() => {
-    const container = googleButtonRef.current;
-    if (!googleReady || authUser || !container) return;
-    window.google?.accounts.id.renderButton(container, { type: "standard", theme: "outline", size: "medium", text: "signin_with", shape: "rectangular" });
-  }, [googleReady, authUser]);
-
-  useEffect(() => {
-    let cancelled = false;
-    let attempts = 0;
-    let timer: number;
-    const tryInit = () => {
-      if (cancelled) return;
-      const google = window.google;
-      if (!google?.accounts?.id) {
-        if (attempts++ < 50) timer = window.setTimeout(tryInit, 200);
-        else setAuthError("Sign-in could not load. Your watchlist still works on this device. Reload to try again.");
-        return;
-      }
-      google.accounts.id.initialize({
-        client_id: "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com",
-        // Full-page redirect instead of a popup, which pop-up blockers, Safari,
-        // and in-app browsers can stop. The result is read by consumeRedirectLogin.
-        ux_mode: "redirect",
-        login_uri: GOOGLE_LOGIN_URI,
-        nonce: getLoginNonce(),
-        auto_select: false,
-      });
-      setGoogleReady(true);
-    };
-    timer = window.setTimeout(tryInit, 0);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-      window.google?.accounts.id.cancel();
-    };
-  }, []);
-
   const handleLogout = useCallback(() => {
     clearAuth();
     setAuthUser(null);
@@ -940,12 +910,17 @@ function App() {
       ) : (
         <div className="flex min-h-12 items-center justify-between gap-3 border-b-2 border-divider px-4 py-2 text-nav-link text-ink">
           <span>Sign in to sync your watchlist across devices</span>
-          {googleReady ? null : (
-            <button type="button" className={primaryButton} disabled>
-              {authError ? "Sign-in unavailable" : "Loading sign-in…"}
-            </button>
-          )}
-          <div ref={googleButtonRef} className={googleReady ? "flex-none" : "hidden"} />
+          <button
+            type="button"
+            className={`${buttonBase} flex-none border-hairline bg-card px-4 text-ink shadow-level1 hover:bg-bone compact:px-4`}
+            onClick={() => {
+              setAuthError(null);
+              startGoogleSignIn();
+            }}
+          >
+            <GoogleIcon />
+            Sign in with Google
+          </button>
         </div>
       )}
 
@@ -967,21 +942,22 @@ function App() {
       )}
 
       {nextCountdownAnime ? (
-        <section className={`${panelBase} grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-start gap-4 tablet:grid-cols-1`} aria-label="Your anime">
+        <section className={`${panelBase} grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-stretch gap-4 tablet:grid-cols-1`} aria-label="Your anime">
           {/* ─── Next episode: the dark command surface ─── */}
           <div
             className="grid grid-cols-[112px_minmax(0,1fr)] gap-4 rounded-sm bg-dark p-4 text-on-dark shadow-level2 mobile:grid-cols-[72px_minmax(0,1fr)] mobile:gap-3 mobile:p-3"
             role="region"
             aria-labelledby="next-release-title"
           >
-            <img className="w-full aspect-poster object-cover object-top" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
-            <div className="grid min-w-0 content-start gap-3 mobile:gap-2">
+            <img className="w-full self-start aspect-poster object-cover object-top" src={nextCountdownAnime.imageUrl} alt={nextCountdownAnime.title} loading="lazy" decoding="async" />
+            {/* Stretches to the watchlist's height; the countdown pins to the bottom. */}
+            <div className="flex min-w-0 flex-col gap-3 mobile:gap-2">
               <span className="text-ui-label uppercase text-on-dark-mute">Next episode</span>
               <h2 className="m-0 text-display-lg text-on-dark mobile:text-hero-tagline" id="next-release-title">
                 {nextCountdownAnime.title}
               </h2>
               <p className="text-on-dark-mute">{formatNextEpisodeLabel(nextCountdownAt)}</p>
-              <div className="grid grid-cols-4 gap-2 mobile:hidden" aria-label="Next episode countdown" role="timer" aria-live="off">
+              <div className="mt-auto grid grid-cols-4 gap-2 mobile:hidden" aria-label="Next episode countdown" role="timer" aria-live="off">
                 {renderCountdown()}
               </div>
             </div>

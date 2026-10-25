@@ -156,30 +156,46 @@ app.post("/auth/google", async (c) => {
   return c.json({ token: result.token, user: result.user });
 });
 
-// Redirect sign-in: Google posts the credential here as a form, then the user is
-// sent back to the app with the session in the URL fragment, which never reaches a server.
-// Google's g_csrf_token cookie lives on the app's domain and is not sent here, so the
-// app instead checks that the nonce it generated comes back unchanged. The nonce is
-// "<random>.<app origin>", which also tells us which frontend to return to.
+// Returns the app origin encoded in a "<random>.<app origin>" nonce, if it is allowed.
+function originFromNonce(nonce: string): string | null {
+  try {
+    const origin = decodeURIComponent(nonce.slice(nonce.indexOf(".") + 1));
+    return APP_ORIGINS.includes(origin) ? origin : null;
+  } catch {
+    return null;
+  }
+}
+
+// Redirect sign-in: Google's OpenID Connect endpoint posts the ID token here as a
+// form (`id_token`, or `credential` from the Google Identity Services button), then
+// the user is sent back to the app with the session in the URL fragment, which
+// never reaches a server. The app checks that the nonce it generated comes back
+// inside the signed ID token, which protects against login CSRF. The nonce, also
+// sent as `state`, is "<random>.<app origin>" so we know which frontend to return to.
 app.post("/auth/google/redirect", async (c) => {
   const form = await c.req.formData().catch(() => null);
-  const credential = form?.get("credential");
-  const result = await signInWithGoogle(c.env, typeof credential === "string" ? credential : "");
+  const field = (name: string) => {
+    const value = form?.get(name);
+    return typeof value === "string" ? value : "";
+  };
 
-  const nonce = result.ok ? result.nonce ?? "" : "";
-  let nonceOrigin = "";
-  try {
-    nonceOrigin = decodeURIComponent(nonce.slice(nonce.indexOf(".") + 1));
-  } catch {
-    // Malformed nonce: fall back to the production app, where the nonce check fails.
+  // The state is unsigned, so it only chooses among allowed origins.
+  const origin = originFromNonce(field("state")) ?? APP_ORIGINS[0];
+
+  // Google reports a cancelled or failed sign-in as an `error` field.
+  if (field("error")) {
+    return c.redirect(`${origin}/#${new URLSearchParams({ auth_error: field("error") })}`, 303);
   }
-  const origin = APP_ORIGINS.includes(nonceOrigin) ? nonceOrigin : APP_ORIGINS[0];
 
-  const fragment = result.ok
-    ? new URLSearchParams({ auth: JSON.stringify({ token: result.token, user: result.user, nonce }) })
-    : new URLSearchParams({ auth_error: result.error });
+  const result = await signInWithGoogle(c.env, field("id_token") || field("credential"));
 
-  return c.redirect(`${origin}/#${fragment}`, 303);
+  if (!result.ok) {
+    return c.redirect(`${origin}/#${new URLSearchParams({ auth_error: result.error })}`, 303);
+  }
+
+  const nonce = result.nonce ?? "";
+  const fragment = new URLSearchParams({ auth: JSON.stringify({ token: result.token, user: result.user, nonce }) });
+  return c.redirect(`${originFromNonce(nonce) ?? origin}/#${fragment}`, 303);
 });
 
 // ─── Auth middleware ───────────────────────────────────────────────────────────

@@ -65,19 +65,37 @@ export function getStoredUser(): AuthUser | null {
 }
 
 // ─── Redirect sign-in ────────────────────────────────────────────────────────
-// Google's button navigates to Google and posts the result to the API, which
-// redirects back here with the session in the URL fragment. No popup is involved,
-// so pop-up blockers and in-app browsers can't break it.
+// Our own button sends the page to Google's OpenID Connect sign-in, which posts the
+// ID token to the API, which redirects back here with the session in the URL
+// fragment. No popup or Google script is involved, so pop-up blockers and in-app
+// browsers can't break it, and the button can follow Design.md.
 
-export const GOOGLE_LOGIN_URI = `${API_BASE}/auth/google/redirect`;
+const GOOGLE_CLIENT_ID = "1004921240672-ong7k2d2fv3t1n6nfoen7d5cit6vptfi.apps.googleusercontent.com";
+const GOOGLE_LOGIN_URI = `${API_BASE}/auth/google/redirect`;
 const LOGIN_NONCE_KEY = "anicount-login-nonce";
+
+export function startGoogleSignIn(): void {
+  const nonce = getLoginNonce();
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_LOGIN_URI,
+    response_type: "id_token",
+    response_mode: "form_post",
+    scope: "openid email profile",
+    nonce,
+    // Echoed back even when the user cancels, so the API knows which app to return to.
+    state: nonce,
+    prompt: "select_account",
+  });
+  location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+}
 
 /**
  * A per-tab nonce that Google embeds in the ID token and the API echoes back.
  * Matching it proves this tab started the sign-in (login CSRF protection). The
  * suffix tells the API which app origin to return to.
  */
-export function getLoginNonce(): string {
+function getLoginNonce(): string {
   try {
     const existing = sessionStorage.getItem(LOGIN_NONCE_KEY);
     if (existing) return existing;
