@@ -17,8 +17,8 @@ const en = {
   dateLocale: undefined as string | undefined,
 
   languageLabel: "Language",
-  themeLabel: "Theme",
-  themes: { system: "System", light: "Light", dark: "Dark" } satisfies Record<ThemePreference, string>,
+  switchToLight: "Switch to light theme",
+  switchToDark: "Switch to dark theme",
 
   signInPrompt: "Sign in to sync your watchlist across devices",
   signInWithGoogle: "Sign in with Google",
@@ -112,8 +112,8 @@ const ms: Messages = {
   dateLocale: "ms-MY",
 
   languageLabel: "Bahasa",
-  themeLabel: "Tema",
-  themes: { system: "Sistem", light: "Cerah", dark: "Gelap" },
+  switchToLight: "Tukar ke tema cerah",
+  switchToDark: "Tukar ke tema gelap",
 
   signInPrompt: "Log masuk untuk menyegerakkan senarai tontonan anda merentas peranti",
   signInWithGoogle: "Log masuk dengan Google",
@@ -231,6 +231,8 @@ const ms: Messages = {
 
 export const messages: Record<Locale, Messages> = { en, ms };
 export const localeNames: Record<Locale, string> = { en: "English", ms: "Bahasa Melayu" };
+// Short labels for the language toggle; BM is the usual abbreviation for Bahasa Melayu.
+export const localeShortNames: Record<Locale, string> = { en: "EN", ms: "BM" };
 
 /** Translates an English stored label, falling back to the original. */
 export function translateLabel(table: Record<string, string>, label: string): string {

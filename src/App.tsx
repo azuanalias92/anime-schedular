@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import {
   messages,
   localeNames,
+  localeShortNames,
   readLocale,
   saveLocale,
   readTheme,
@@ -311,6 +312,23 @@ function SearchIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.5-3.5" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[1.1rem] fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="size-[1.1rem] fill-none stroke-current stroke-[1.9] [stroke-linecap:round] [stroke-linejoin:round]">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
     </svg>
   );
 }
@@ -675,6 +693,15 @@ function App() {
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
+
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => setSystemPrefersDark(query.matches);
+    query.addEventListener("change", handleChange);
+    return () => query.removeEventListener("change", handleChange);
+  }, []);
 
   // useEffect(() => {
   //   const capturePrompt = (event: Event) => setInstallPrompt(event as BeforeInstallPromptEvent);
@@ -1043,30 +1070,36 @@ function App() {
     }
   }
 
-  // Design.md select: 36px tall, 4px radius, hairline border, surface background.
-  const preferenceSelect = "h-9 cursor-pointer rounded-sm border border-hairline bg-surface px-2 text-ui-label text-ink focus-visible:border-deep compact:h-11";
+  // Until the user toggles, the theme follows the OS; the toggle flips whatever is showing.
+  const effectiveTheme = theme === "system" ? (systemPrefersDark ? "dark" : "light") : theme;
+
   const preferenceControls = (
     <>
-      <label className="flex items-center">
-        <span className="sr-only">{t.languageLabel}</span>
-        <select className={preferenceSelect} value={locale} onChange={(event) => setLocale(event.target.value as Locale)}>
-          {(Object.keys(localeNames) as Locale[]).map((code) => (
-            <option key={code} value={code}>
-              {localeNames[code]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="flex items-center">
-        <span className="sr-only">{t.themeLabel}</span>
-        <select className={preferenceSelect} value={theme} onChange={(event) => setTheme(event.target.value as ThemePreference)}>
-          {(["system", "light", "dark"] as const).map((option) => (
-            <option key={option} value={option}>
-              {t.themes[option]}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* Language: a two-way segmented toggle; the active side uses the dark command surface. */}
+      <div className="flex h-9 items-stretch rounded-sm border border-hairline bg-surface p-0.5 compact:h-11" role="group" aria-label={t.languageLabel}>
+        {(Object.keys(localeShortNames) as Locale[]).map((code) => (
+          <button
+            key={code}
+            type="button"
+            lang={messages[code].htmlLang}
+            title={localeNames[code]}
+            aria-pressed={locale === code}
+            onClick={() => setLocale(code)}
+            className={`min-w-9 cursor-pointer rounded-xs px-2 text-ui-label transition-colors duration-150 ${locale === code ? "bg-dark text-on-dark" : "text-ink hover:bg-bone"}`}
+          >
+            {localeShortNames[code]}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className={`${buttonBase} ${iconButton} border-hairline bg-surface text-ink hover:bg-bone`}
+        onClick={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
+        aria-label={effectiveTheme === "dark" ? t.switchToLight : t.switchToDark}
+        title={effectiveTheme === "dark" ? t.switchToLight : t.switchToDark}
+      >
+        {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
+      </button>
     </>
   );
 
@@ -1187,7 +1220,9 @@ function App() {
               </div>
 
               <p className="text-caption text-stone">{t.swipeHint}</p>
-              <ul className="m-0 grid min-h-0 flex-1 list-none content-start gap-2 overflow-y-auto overscroll-contain p-0.5 tablet:max-h-[22rem]">
+              {/* auto-rows-max: rows clip their swipe layer (overflow-hidden), which lets grid
+                  rows shrink to zero; fixing them at full height makes the list overflow and scroll. */}
+              <ul className="m-0 grid min-h-0 flex-1 auto-rows-max list-none content-start gap-2 overflow-y-auto overscroll-contain p-0.5 tablet:max-h-[22rem]">
                 {sortedWatchlist.map((anime) => {
                   const nextEpisodeAt = resolveNextEpisodeAt(anime, now);
                   const isNext = anime.malId === nextCountdownAnime.malId;
