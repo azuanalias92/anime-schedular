@@ -1155,12 +1155,12 @@ function App() {
       )}
 
       {nextCountdownAnime ? (
-        <section className={`${panelBase} grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-stretch gap-4 tablet:grid-cols-1`} aria-label={t.yourAnime}>
+        <section className={`${panelBase} grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)] items-stretch gap-4 wide:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] tablet:grid-cols-1`} aria-label={t.yourAnime}>
           {/* ─── Next episode: the dark command surface ─── */}
           {/* The poster covers the card as a hero band; a gradient keeps text legible. Its
               height sets the row, and the watchlist beside it scrolls to match. */}
           <div
-            className={`relative isolate flex min-h-[26rem] flex-col justify-end gap-3 overflow-hidden rounded-sm bg-dark p-6 text-on-dark shadow-level2 mobile:min-h-[22rem] mobile:gap-2 mobile:p-4 ${nextCountdownAnime.bannerUrl ? "compact:min-h-0" : ""}`}
+            className={`relative isolate flex min-h-[26rem] flex-col justify-end gap-3 overflow-hidden rounded-sm bg-dark p-6 text-on-dark shadow-level2 wide:min-h-[32rem] mobile:min-h-[22rem] mobile:gap-2 mobile:p-4 ${nextCountdownAnime.bannerUrl ? "compact:min-h-0" : ""}`}
             role="region"
             aria-labelledby="next-release-title"
           >
@@ -1362,7 +1362,7 @@ function App() {
           </div>
         ) : visibleAnime.length > 0 ? (
           <>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-3 tablet:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] mobile:grid-cols-1">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] items-stretch gap-3 wide:grid-cols-[repeat(auto-fit,minmax(280px,1fr))] wide:gap-4 tablet:grid-cols-[repeat(auto-fit,minmax(220px,1fr))] mobile:grid-cols-1">
               {visibleAnime.map((anime) => {
                 const isSelected = watchlistIds.has(anime.malId);
 

@@ -4,6 +4,8 @@
 @custom-variant tablet (@media (max-width: 840px));
 @custom-variant mobile (@media (max-width: 720px));
 @custom-variant compact (@media (max-width: 480px));
+/* Large desktop and ultrawide monitors get a wider content cap. */
+@custom-variant wide (@media (min-width: 1600px));
 
 /* Tokens mirror the YAML front matter in Design.md. Light is the default chassis. */
 @theme {
