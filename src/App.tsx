@@ -1160,16 +1160,30 @@ function App() {
           {/* The poster covers the card as a hero band; a gradient keeps text legible. Its
               height sets the row, and the watchlist beside it scrolls to match. */}
           <div
-            className="relative isolate flex min-h-[26rem] flex-col justify-end gap-3 overflow-hidden rounded-sm bg-dark p-6 text-on-dark shadow-level2 mobile:min-h-[22rem] mobile:gap-2 mobile:p-4"
+            className={`relative isolate flex min-h-[26rem] flex-col justify-end gap-3 overflow-hidden rounded-sm bg-dark p-6 text-on-dark shadow-level2 mobile:min-h-[22rem] mobile:gap-2 mobile:p-4 ${nextCountdownAnime.bannerUrl ? "compact:min-h-0" : ""}`}
             role="region"
             aria-labelledby="next-release-title"
           >
-            {/* Landscape banner where the card is wide; phones keep the portrait poster, which crops less there. */}
-            <picture>
-              {nextCountdownAnime.bannerUrl ? <source media="(min-width: 481px)" srcSet={nextCountdownAnime.bannerUrl} /> : null}
-              <img className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]" src={nextCountdownAnime.imageUrl} alt="" loading="lazy" decoding="async" />
-            </picture>
-            <div className="absolute inset-0 -z-10 bg-linear-to-t from-dark via-dark/75 to-dark/10" aria-hidden="true" />
+            {/* The landscape banner (4.75:1) fills the card where it is wide. On phones the card is
+                near square, so the banner becomes an edge-to-edge strip above the text instead of
+                being cropped to its middle. Titles without a banner fall back to the poster. */}
+            {nextCountdownAnime.bannerUrl ? (
+              <>
+                <img
+                  className="absolute inset-0 -z-10 size-full object-cover compact:static compact:z-auto compact:-mx-4 compact:-mt-4 compact:mb-1 compact:aspect-[3/1] compact:h-auto compact:w-[calc(100%+2rem)] compact:max-w-none"
+                  src={nextCountdownAnime.bannerUrl}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 -z-10 bg-linear-to-t from-dark via-dark/75 to-dark/10 compact:hidden" aria-hidden="true" />
+              </>
+            ) : (
+              <>
+                <img className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]" src={nextCountdownAnime.imageUrl} alt="" loading="lazy" decoding="async" />
+                <div className="absolute inset-0 -z-10 bg-linear-to-t from-dark via-dark/75 to-dark/10" aria-hidden="true" />
+              </>
+            )}
             <span className="text-ui-label uppercase text-on-dark-mute">{t.nextEpisode}</span>
             <h2 className="m-0 text-display-lg text-on-dark [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] mobile:text-hero-tagline" id="next-release-title">
               {nextCountdownAnime.title}
