@@ -69,6 +69,7 @@ const MEDIA_FIELDS = `
     id
     title { romaji english native }
     coverImage { large }
+    bannerImage
     startDate { year month day }
     season
     seasonYear
@@ -110,6 +111,7 @@ type AnimeApiItem = {
   coverImage: {
     large: string;
   };
+  bannerImage: string | null;
   startDate: AniListDate;
   season: string | null;
   seasonYear: number | null;
@@ -140,6 +142,8 @@ type AnimeCardData = {
   malId: number;
   title: string;
   imageUrl: string;
+  // Wide landscape art for the hero card; not every title has one.
+  bannerUrl: string | null;
   airing: boolean;
   releaseAt: string | null;
   releaseLabel: string;
@@ -477,6 +481,7 @@ function normalizeAnime(anime: AnimeApiItem): AnimeCardData {
     malId: anime.id,
     title: anime.title.english || anime.title.romaji || anime.title.native || "Unknown",
     imageUrl: anime.coverImage?.large || "/favicon.svg",
+    bannerUrl: anime.bannerImage || null,
     airing: anime.status === "RELEASING",
     releaseAt,
     releaseLabel: anime.startDate.year
@@ -590,6 +595,7 @@ function readStoredWatchlist(): AnimeCardData[] {
           malId: item.malId,
           title: item.title,
           imageUrl,
+          bannerUrl: typeof item.bannerUrl === "string" && item.bannerUrl.startsWith("https://") ? item.bannerUrl : null,
           airing: Boolean(item.airing),
           releaseAt: typeof item.releaseAt === "string" ? item.releaseAt : null,
           releaseLabel: formatLocalDateTime(typeof item.releaseAt === "string" ? item.releaseAt : null),
@@ -804,6 +810,7 @@ function App() {
           item.releaseAt !== latest.releaseAt ||
           item.releaseLabel !== latest.releaseLabel ||
           item.imageUrl !== latest.imageUrl ||
+          item.bannerUrl !== latest.bannerUrl ||
           item.status !== latest.status ||
           item.broadcastLabel !== latest.broadcastLabel ||
           item.broadcastDay !== latest.broadcastDay ||
@@ -1168,7 +1175,11 @@ function App() {
             role="region"
             aria-labelledby="next-release-title"
           >
-            <img className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]" src={nextCountdownAnime.imageUrl} alt="" loading="lazy" decoding="async" />
+            {/* Landscape banner where the card is wide; phones keep the portrait poster, which crops less there. */}
+            <picture>
+              {nextCountdownAnime.bannerUrl ? <source media="(min-width: 481px)" srcSet={nextCountdownAnime.bannerUrl} /> : null}
+              <img className="absolute inset-0 -z-10 size-full object-cover object-[center_20%]" src={nextCountdownAnime.imageUrl} alt="" loading="lazy" decoding="async" />
+            </picture>
             <div className="absolute inset-0 -z-10 bg-linear-to-t from-dark via-dark/75 to-dark/10" aria-hidden="true" />
             <span className="text-ui-label uppercase text-on-dark-mute">{t.nextEpisode}</span>
             <h2 className="m-0 text-display-lg text-on-dark [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] mobile:text-hero-tagline" id="next-release-title">
