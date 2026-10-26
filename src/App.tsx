@@ -208,7 +208,6 @@ function SwipeToRemove({ onRemove, removeLabel, className, children }: { onRemov
   const onRemoveRef = useRef(onRemove);
   const gesture = useRef<{ pointerId: number; startX: number; startY: number; dragging: boolean } | null>(null);
   const offsetRef = useRef(0);
-  const suppressClick = useRef(false);
   const [offset, setOffset] = useState(0);
   const [settling, setSettling] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -231,7 +230,6 @@ function SwipeToRemove({ onRemove, removeLabel, className, children }: { onRemov
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (removing || (event.pointerType === "mouse" && event.button !== 0)) return;
     gesture.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dragging: false };
-    suppressClick.current = false;
     setSettling(false);
   }
 
@@ -249,7 +247,6 @@ function SwipeToRemove({ onRemove, removeLabel, className, children }: { onRemov
       }
       if (dx > -SWIPE_SLOP_PX) return;
       current.dragging = true;
-      suppressClick.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
     }
 
@@ -286,14 +283,6 @@ function SwipeToRemove({ onRemove, removeLabel, className, children }: { onRemov
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerEnd}
         onPointerCancel={handlePointerEnd}
-        onClickCapture={(event) => {
-          // A drag ending over the remove button must not also click it.
-          if (suppressClick.current) {
-            event.preventDefault();
-            event.stopPropagation();
-            suppressClick.current = false;
-          }
-        }}
       >
         {children}
       </div>
@@ -1245,7 +1234,7 @@ function App() {
                       key={anime.malId}
                       onRemove={() => toggleWatchlist(anime)}
                       removeLabel={t.remove}
-                      className={`grid grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-sm border-l-4 bg-card py-2 pr-1 pl-2 ${isNext ? "border-secondary" : "border-card"}`}
+                      className={`grid grid-cols-[40px_minmax(0,1fr)_auto] items-center gap-3 rounded-sm border-l-4 bg-card py-2 pr-3 pl-2 ${isNext ? "border-secondary" : "border-card"}`}
                     >
                       <img className="w-10 aspect-poster object-cover object-top" src={anime.imageUrl} alt="" loading="lazy" decoding="async" />
                       <div className="grid min-w-0 gap-1">
@@ -1253,15 +1242,6 @@ function App() {
                         <p className="truncate text-caption text-charcoal">{formatNextEpisodeLabel(nextEpisodeAt, t)}</p>
                       </div>
                       <span className="text-ui-label tabular-nums text-ink">{formatShortCountdown(nextEpisodeAt, now, t)}</span>
-                      <button
-                        type="button"
-                        className={`${ghostButton} ${iconButton}`}
-                        onClick={() => toggleWatchlist(anime)}
-                        aria-label={t.removeFromWatchlist(anime.title)}
-                        title={t.removeFromWatchlist(anime.title)}
-                      >
-                        <TrashIcon />
-                      </button>
                     </SwipeToRemove>
                   );
                 })}
